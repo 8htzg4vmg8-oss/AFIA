@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AFIA - Sistema de Gestão</title>
+    <style>
+        :root { 
+            --primary: #1E293B; /* Azul Escuro Profissional */
+            --accent: #2563EB;  /* Azul Moderno */
+            --success: #22C55E; /* Verde WhatsApp */
+            --bg: #F8FAFC; 
+            --card: #FFFFFF;
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background-color: var(--bg); color: #0F172A; }
+        
+        /* TELA DE LOGIN */
+        .login-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--primary); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: white; padding: 30px; border-radius: 12px; width: 85%; max-width: 360px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-box h3 { margin-top: 0; color: var(--primary); font-size: 22px; }
+        
+        /* MENU SUPERIOR */
+        .nav-tabs { display: flex; background: var(--primary); padding: 5px; position: sticky; top: 0; z-index: 900; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .tab-btn { flex: 1; padding: 14px; color: white; background: transparent; border: none; font-weight: bold; font-size: 14px; cursor: pointer; opacity: 0.7; transition: 0.2s; }
+        .tab-btn.active { opacity: 1; border-bottom: 4px solid var(--accent); }
+        
+        .container { max-width: 480px; margin: 15px auto; padding: 0 15px; box-sizing: border-box; }
+        .page { display: none; } .page.active { display: block; }
+        
+        /* MARCA / LOGO */
+        .brand-header { text-align: center; padding: 15px 0; }
+        .brand-logo { font-size: 32px; font-weight: bold; color: var(--primary); letter-spacing: 2px; }
+        .brand-sub { font-size: 12px; color: #64748B; text-transform: uppercase; margin-top: 2px; font-weight: 600; letter-spacing: 1px; }
+        
+        /* RESUMO DO DIA (DASHBOARD) */
+        .dashboard { display: flex; gap: 10px; margin-bottom: 20px; }
+        .dash-card { flex: 1; background: var(--card); padding: 12px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #E2E8F0; }
+        .dash-num { font-size: 20px; font-weight: bold; color: var(--accent); }
+        .dash-txt { font-size: 11px; color: #64748B; font-weight: 500; }
+
+        /* FORMULÁRIOS E INPUTS */
+        .form-group { background: var(--card); padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #E2E8F0; margin-bottom: 15px; }
+        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 14px; color: #334155; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 6px; box-sizing: border-box; font-size: 16px; background: #F1F5F9; transition: 0.2s; }
+        input:focus, textarea:focus { background: #FFF; border-color: var(--accent); outline: none; }
+        
+        /* LINHA DE QUANTIDADE DE PEÇAS */
+        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F1F5F9; }
+        .item-row:last-child { border-bottom: none; }
+        .item-row label { margin: 0; font-size: 15px; font-weight: 500; }
+        .item-row input { width: 75px; text-align: center; margin: 0; padding: 8px; background: #FFF; }
+        
+        /* BOTÕES */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; margin-top: 12px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-zap { background: var(--success); }
+        .btn-print { background: var(--accent); }
+        
+        /* HISTÓRICO */
+        .history-card { background: white; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .ranking-list { background: white; padding: 15px; border-radius: 8px; border: 1px solid #E2E8F0; padding-left: 35px; }
+        .ranking-list li { margin-bottom: 8px; font-size: 15px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printReceipt, #printReceipt * { visibility: visible; }
+            #printReceipt { position: absolute; left: 0; top: 0; width: 100%; font-family: monospace; font-size: 14px; color: black; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+    <div class="login-box">
+        <h3>⚔️ AFIA</h3>
+        <p id="loginInstructions" style="color: #64748B; font-size: 14px; margin-bottom: 20px;">Painel de Gestão Avançada</p>
+        <input type="password" id="senhaInput" placeholder="Sua senha">
+        <button id="loginBtn" class="btn btn-print" onclick="verificarSenha()">Entrar no Sistema</button>
+    </div>
+</div>
+
+<nav class="nav-tabs">
+    <button class="tab-btn active" onclick="mudarAba('novaOS')">📝 Nova OS</button>
+    <button class="tab-btn" onclick="mudarAba('historico'); carregarRanking();">📊 Clientes</button>
+    <button class="tab-btn" onclick="mudarAba('config')">⚙️ Ajustes</button>
+</nav>
+
+<div class="container">
+    
+    <div id="page-novaOS" class="page active">
+        <div class="brand-header">
+            <div class="brand-logo">AFIA</div>
+            <div class="brand-sub">Alta Cutelaria & Afiação Profissional</div>
+        </div>
+
+        <div class="dashboard">
+            <div class="dash-card"><div class="dash-num" id="dashAtendimentos">0</div><div class="dash-txt">Atendimentos</div></div>
+            <div class="dash-card"><div class="dash-num" id="dashPecas">0</div><div class="dash-txt">Peças Recebidas</div></div>
+        </div>
+        
+        <div class="form-group">
+            <label>🔍 Busca Rápida (Telefone):</label>
+            <input type="text" id="buscaTelefone" placeholder="Digite para buscar cadastro..." oninput="buscarCliente()">
+        </div>
+        
+        <form id="formOS">
+            <div class="form-group">
+                <label>Nome do Cliente:</label>
+                <input type="text" id="nome" required>
+                <label style="margin-top: 10px;">Telefone / WhatsApp:</label>
+                <input type="text" id="telefone" placeholder="Ex: 32999999999" required>
+            </div>
+
+            <div class="form-group">
+                <label style="color: var(--accent); margin-bottom: 10px;">🛠️ Marcar Quantidades:</label>
+                <div class="item-row"><label>✂️ Alicates de Cutícula</label><input type="number" id="alicates" value="0" min="0"></div>
+                <div class="item-row"><label>🔪 Facas</label><input type="number" id="facas" value="0" min="0"></div>
+                <div class="item-row"><label>✂️ Tesouras</label><input type="number" id="tesouras" value="0" min="0"></div>
+                <div class="item-row"><label>🌀 Molas Extras</label><input type="number" id="molas" value="0" min="0"></div>
+                <div class="item-row"><label>📦 Outros Serviços</label><input type="number" id="outros" value="0" min="0"></div>
+            </div>
+
+            <div class="form-group">
+                <label>📅 Data e Hora da Entrega:</label>
+                <input type="datetime-local" id="dataEntrega" required>
+            </div>
+
+            <button type="button" class="btn btn-zap" onclick="processarAtendimento('whatsapp')">📱 Enviar via WhatsApp</button>
+            <button type="button" class="btn btn-print" onclick="processarAtendimento('imprimir')">🖨️ Imprimir Via Oficina</button>
+        </form>
+    </div>
+
+    <div id="page-historico" class="page">
+        <div class="form-group">
+            <h3>🔍 Histórico por Cliente</h3>
+            <input type="text" id="buscaHistorial" placeholder="Digite o telefone do cliente..." oninput="puxarDadosCliente()">
+            <div id="resultadoHistorial"></div>
+        </div>
+
+        <div class="form-group">
+            <h3>🏆 Clientes VIPs (Mais Atendimentos)</h3>
+            <div id="rankingClientes"></div>
+        </div>
+    </div>
+
+    <div id="page-config" class="page">
+        <div class="form-group">
+            <h3>📝 Personalizar Notificação do WhatsApp</h3>
+            <p style="font-size: 13px; color: #64748B; line-height: 1.4;">Tags automáticas: <b>{os}</b>, <b>{nome}</b>, <b>{itens}</b>, <b>{entrega}</b></p>
+            <textarea id="templateMsg" rows="6"></textarea>
+            <button class="btn btn-print" onclick="salvarTemplate()">Salvar Texto Padrão</button>
+        </div>
+
+        <div class="form-group">
+            <h3>🔒 Segurança (Alterar Senha)</h3>
+            <label>Nova Senha do Sistema:</label>
+            <input type="password" id="novaSenhaConfig" placeholder="Digite a nova senha">
+            <button class="btn btn-print" style="background-color: #475569;" onclick="alterarSenhaDoSistema()">Atualizar Minha Senha</button>
+        </div>
+    </div>
+</div>
+
+<div id="printReceipt" style="display:none;"></div>
+
+<script>
+    let banco = JSON.parse(localStorage.getItem('db_afiacao_pure')) || { clientes: {}, ordens: [] };
+    let msgPadrao = "*AFIA - ORDEM DE SERVIÇO Nº {os}*\n\nOlá, *{nome}*!\nConfirmamos o recebimento das suas ferramentas:\n\n📝 *Serviço:* {itens}\n📅 *Previsão de Entrega:* {entrega}\n\n_Agradecemos a preferência! Seus alicates serão entregues embalados e protegidos._";
+    let templateSalvo = localStorage.getItem('template_zap_pure') || msgPadrao;
+    document.getElementById('templateMsg').value = templateSalvo;
+
+    // Lógica inicial de senha
+    let senhaDefinida = localStorage.getItem('senha_mestre_afia');
+    if (!senhaDefinida) {
+        document.getElementById('loginInstructions').innerText = "✨ Primeiro Acesso: Cadastre sua senha definitiva agora.";
+        document.getElementById('senhaInput').placeholder = "Crie sua nova senha";
+        document.getElementById('loginBtn').innerText = "Cadastrar Senha";
+    }
+
+    atualizarDashboard();
+
+    function verificarSenha() {
+        let input = document.getElementById('senhaInput').value;
+        if (!input) return alert("Por favor, digite uma senha!");
+
+        if (!senhaDefinida) {
+            // Cadastra a primeira senha
+            localStorage.setItem('senha_mestre_afia', input);
+            senhaDefinida = input;
+            alert("Senha cadastrada com sucesso! Guarde-a bem.");
+            document.getElementById('loginScreen').style.display = 'none';
+        } else {
+            // Valida a senha existente
+            if (input === senhaDefinida) {
+                document.getElementById('loginScreen').style.display = 'none';
+            } else {
+                alert("Senha incorreta! Tente novamente.");
+            }
+        }
+    }
+
+    function alterarSenhaDoSistema() {
+        let nova = document.getElementById('novaSenhaConfig').value;
+        if (!nova) return alert("Digite a nova senha no campo!");
+        localStorage.setItem('senha_mestre_afia', nova);
+        senhaDefinida = nova;
+        document.getElementById('novaSenhaConfig').value = "";
+        alert("Senha do sistema atualizada com sucesso!");
+    }
+
+    function mudarAba(aba) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('page-'+aba).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    function atualizarDashboard() {
+        document.getElementById('dashAtendimentos').innerText = banco.ordens.length;
+        let totalPecas = 0;
+        banco.ordens.forEach(o => {
+            let matches = o.itens.match(/\d+/g);
+            if(matches) { matches.forEach(n => totalPecas += parseInt(n)); }
+        });
+        document.getElementById('dashPecas').innerText = totalPecas;
+    }
+
+    function buscarCliente() {
+        let tel = document.getElementById('buscaTelefone').value.trim();
+        if (banco.clientes[tel]) {
+            document.getElementById('nome').value = banco.clientes[tel].nome;
+            document.getElementById('telefone').value = tel;
+        }
+    }
+
+    function salvarTemplate() {
+        localStorage.setItem('template_zap_pure', document.getElementById('templateMsg').value);
+        templateSalvo = document.getElementById('templateMsg').value;
+        alert("Mensagem salva com sucesso!");
+    }
+
+    function processarAtendimento(acao) {
+        let nome = document.getElementById('nome').value;
+        let tel = document.getElementById('telefone').value.replace(/\D/g,'');
+        let dataInput = document.getElementById('dataEntrega').value;
+        if(!nome || !tel || !dataInput) return alert("Por favor, preencha todos os campos!");
+
+        let itens = [];
+        let totalItensOS = 0;
+        ['alicates','facas','tesouras','molas','outros'].forEach(id => {
+            let q = parseInt(document.getElementById(id).value) || 0;
+            if(q > 0) {
+                itens.push(`${q} ${id.toUpperCase()}`);
+                totalItensOS += q;
+            }
+        });
+        if(itens.length === 0) return alert("Indique a quantidade de pelo menos 1 item!");
+
+        let numeroOS = Math.floor(1000 + Math.random() * 9000);
+        let dataFormatada = new Date(dataInput).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+        let textoItens = itens.join(', ');
+
+        if(!banco.clientes[tel]) banco.clientes[tel] = { nome: nome, totalServicos: 0 };
+        banco.clientes[tel].totalServicos += totalItensOS;
+        banco.ordens.push({ os: numeroOS, tel: tel, data: new Date().toISOString(), itens: textoItens, entrega: dataFormatada });
+        localStorage.setItem('db_afiacao_pure', JSON.stringify(banco));
+
+        atualizarDashboard();
+
+        if(acao === 'whatsapp') {
+            let msg = templateSalvo.replace('{os}', numeroOS).replace('{nome}', nome).replace('{itens}', textoItens).replace('{entrega}', dataFormatada);
+            window.location.href = `https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`;
+        } else if(acao === 'imprimir') {
+            let cupom = `========================\n          AFIA          \n========================\nOS NUMERO: ${numeroOS}\nCLIENTE: ${nome}\nTEL: ${tel}\n------------------------\nITENS RECEBIDOS:\n${textoItens.replace(/,/g, '\n')}\n------------------------\nRETIRADA: ${dataFormatada}\n========================\n\n\n`;
+            let pBox = document.getElementById('printReceipt');
+            pBox.innerText = cupom;
+            pBox.style.display = 'block';
+            window.print();
+            pBox.style.display = 'none';
+        }
+    }
+
+    function puxarDadosCliente() {
+        let tel = document.getElementById('buscaHistorial').value.trim();
+        let box = document.getElementById('resultadoHistorial');
+        if(!banco.clientes[tel]) { box.innerHTML = "<p style='color:#64748B;margin-top:10px;'>Nenhum histórico para este número.</p>"; return; }
+        
+        let historicoFiltrado = banco.ordens.filter(o => o.tel === tel);
+        let html = `<div class="history-card"><b>Cliente:</b> ${banco.clientes[tel].nome}<br><b>Total de peças afiadas:</b> ${banco.clientes[tel].totalServicos}<h4 style='margin: 10px 0 5px 0;'>Histórico de Ordens:</h4>`;
+        historicoFiltrado.reverse().forEach(o => {
+            html += `• OS ${o.os} (${o.entrega}): ${o.itens}<br>`;
+        });
+        html += `</div>`;
+        box.innerHTML = html;
+    }
+
+    function carregarRanking() {
+        let arr = [];
+        for (let tel in banco.clientes) { arr.push({ nome: banco.clientes[tel].nome, qtd: banco.clientes[tel].totalServicos }); }
+        arr.sort((a,b) => b.qtd - a.qtd);
+        
+        let html = "<ol class='ranking-list'>";
+        arr.slice(0, 5).forEach(c => { html += `<li><b>${c.nome}</b> - ${c.qtd} ferramentas</li>`; });
+        html += "</ol>";
+        document.getElementById('rankingClientes').innerHTML = arr.length ? html : "Nenhum serviço registrado ainda.";
+    }
+</script>
+</body>
+</html>
