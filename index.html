@@ -72,15 +72,15 @@
 <div id="loginScreen" class="login-screen">
     <div class="login-box">
         <h3>⚔️ AFIA</h3>
-        <p id="loginInstructions" style="color: #64748B; font-size: 14px; margin-bottom: 20px;">Painel de Gestão Avançada</p>
-        <input type="password" id="senhaInput" placeholder="Sua senha">
-        <button id="loginBtn" class="btn btn-print" onclick="verificarSenha()">Entrar no Sistema</button>
+        <p id="loginInstructions" style="color: #64748B; font-size: 14px; margin-bottom: 20px;">Carregando conexão segura...</p>
+        <input type="password" id="senhaInput" placeholder="Sua senha" style="display:none;">
+        <button id="loginBtn" class="btn btn-print" onclick="verificarSenha()" style="display:none;">Entrar</button>
     </div>
 </div>
 
 <nav class="nav-tabs">
     <button class="tab-btn active" onclick="mudarAba('novaOS')">📝 Nova OS</button>
-    <button class="tab-btn" onclick="mudarAba('historico'); carregarRanking();">📊 Clientes</button>
+    <button class="tab-btn" onclick="mudarAba('historico')">📊 Clientes</button>
     <button class="tab-btn" onclick="mudarAba('config')">⚙️ Ajustes</button>
 </nav>
 
@@ -161,87 +161,132 @@
 
 <div id="printReceipt" style="display:none;"></div>
 
-<script>
-    let banco = JSON.parse(localStorage.getItem('db_afiacao_pure')) || { clientes: {}, ordens: [] };
-    let msgPadrao = "*AFIA - ORDEM DE SERVIÇO Nº {os}*\n\nOlá, *{nome}*!\nConfirmamos o recebimento das suas ferramentas:\n\n📝 *Serviço:* {itens}\n📅 *Previsão de Entrega:* {entrega}\n\n_Agradecemos a preferência! Seus alicates serão entregues embalados e protegidos._";
-    let templateSalvo = localStorage.getItem('template_zap_pure') || msgPadrao;
-    document.getElementById('templateMsg').value = templateSalvo;
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Lógica inicial de senha
-    let senhaDefinida = localStorage.getItem('senha_mestre_afia');
-    if (!senhaDefinida) {
-        document.getElementById('loginInstructions').innerText = "✨ Primeiro Acesso: Cadastre sua senha definitiva agora.";
-        document.getElementById('senhaInput').placeholder = "Crie sua nova senha";
-        document.getElementById('loginBtn').innerText = "Cadastrar Senha";
+    // Suas credenciais exclusivas injetadas
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXY6zQ6K-roWFFNBCU--LF5enWpVCoLpc",
+      authDomain: "afia-37aa8.firebaseapp.com",
+      projectId: "afia-37aa8",
+      storageBucket: "afia-37aa8.firebasestorage.app",
+      messagingSenderId: "961300018208",
+      appId: "1:961300018208:web:ac2c0b5fbdca48402fb845",
+      databaseURL: "https://afia-37aa8-default-rtdb.firebaseio.com"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let senhaMestre = "";
+    let msgTemplate = "";
+
+    // Inicialização do Sistema puxando dados da Nuvem
+    async function init() {
+        try {
+            // Puxar Senha
+            const snapSenha = await get(ref(db, 'config/senha'));
+            if (snapSenha.exists()) {
+                senhaMestre = snapSenha.val();
+                document.getElementById('loginInstructions').innerText = "Painel de Gestão Avançada";
+                document.getElementById('loginBtn').innerText = "Entrar";
+            } else {
+                document.getElementById('loginInstructions').innerText = "✨ Primeiro Acesso: Cadastre sua senha definitiva agora.";
+                document.getElementById('loginBtn').innerText = "Cadastrar Senha";
+            }
+            document.getElementById('senhaInput').style.display = "block";
+            document.getElementById('loginBtn').style.display = "block";
+
+            // Puxar Template de Mensagem
+            const snapMsg = await get(ref(db, 'config/templateMsg'));
+            if (snapMsg.exists()) {
+                msgTemplate = snapMsg.val();
+            } else {
+                msgTemplate = "*AFIA - ORDEM DE SERVIÇO Nº {os}*\n\nOlá, *{nome}*!\nConfirmamos o recebimento das suas ferramentas:\n\n📝 *Serviço:* {itens}\n📅 *Previsão de Entrega:* {entrega}\n\n_Agradecemos a preferência! Seus alicates serão entregues embalados e protegidos._";
+                await set(ref(db, 'config/templateMsg'), msgTemplate);
+            }
+            document.getElementById('templateMsg').value = msgTemplate;
+
+            atualizarDashboard();
+        } catch (e) {
+            console.error(e);
+            alert("Erro ao conectar à nuvem. Verifique se ativou o Realtime Database no Firebase!");
+        }
     }
 
-    atualizarDashboard();
-
-    function verificarSenha() {
+    window.verificarSenha = async function() {
         let input = document.getElementById('senhaInput').value;
         if (!input) return alert("Por favor, digite uma senha!");
 
-        if (!senhaDefinida) {
-            // Cadastra a primeira senha
-            localStorage.setItem('senha_mestre_afia', input);
-            senhaDefinida = input;
-            alert("Senha cadastrada com sucesso! Guarde-a bem.");
+        if (!senhaMestre) {
+            await set(ref(db, 'config/senha'), input);
+            senhaMestre = input;
+            alert("Senha master guardada em nuvem com sucesso!");
             document.getElementById('loginScreen').style.display = 'none';
         } else {
-            // Valida a senha existente
-            if (input === senhaDefinida) {
+            if (input === senhaMestre) {
                 document.getElementById('loginScreen').style.display = 'none';
-            } else {
-                alert("Senha incorreta! Tente novamente.");
-            }
+            } else { alert("Senha incorreta!"); }
         }
-    }
+    };
 
-    function alterarSenhaDoSistema() {
+    window.alterarSenhaDoSistema = async function() {
         let nova = document.getElementById('novaSenhaConfig').value;
-        if (!nova) return alert("Digite a nova senha no campo!");
-        localStorage.setItem('senha_mestre_afia', nova);
-        senhaDefinida = nova;
+        if (!nova) return alert("Digite a nova senha!");
+        await set(ref(db, 'config/senha'), nova);
+        senhaMestre = nova;
         document.getElementById('novaSenhaConfig').value = "";
-        alert("Senha do sistema atualizada com sucesso!");
-    }
+        alert("Senha atualizada na nuvem!");
+    };
 
-    function mudarAba(aba) {
+    window.salvarTemplate = async function() {
+        let texto = document.getElementById('templateMsg').value;
+        await set(ref(db, 'config/templateMsg'), texto);
+        msgTemplate = texto;
+        alert("Mensagem de envio atualizada na nuvem!");
+    };
+
+    window.mudarAba = function(aba) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('page-'+aba).classList.add('active');
-        event.currentTarget.classList.add('active');
-    }
+        document.getElementById('page='+aba).classList.add('active');
+        if(event) event.currentTarget.classList.add('active');
+        if(aba === 'historico') carregarRanking();
+    };
 
-    function atualizarDashboard() {
-        document.getElementById('dashAtendimentos').innerText = banco.ordens.length;
-        let totalPecas = 0;
-        banco.ordens.forEach(o => {
-            let matches = o.itens.match(/\d+/g);
-            if(matches) { matches.forEach(n => totalPecas += parseInt(n)); }
-        });
-        document.getElementById('dashPecas').innerText = totalPecas;
-    }
-
-    function buscarCliente() {
-        let tel = document.getElementById('buscaTelefone').value.trim();
-        if (banco.clientes[tel]) {
-            document.getElementById('nome').value = banco.clientes[tel].nome;
-            document.getElementById('telefone').value = tel;
+    async function atualizarDashboard() {
+        const snapOrdens = await get(ref(db, 'ordens'));
+        if(snapOrdens.exists()) {
+            let ordens = snapOrdens.val();
+            let lista = Object.values(ordens);
+            document.getElementById('dashAtendimentos').innerText = lista.length;
+            
+            let totalPecas = 0;
+            lista.forEach(o => {
+                let matches = o.itens.match(/\d+/g);
+                if(matches) { matches.forEach(n => totalPecas += parseInt(n)); }
+            });
+            document.getElementById('dashPecas').innerText = totalPecas;
         }
     }
 
-    function salvarTemplate() {
-        localStorage.setItem('template_zap_pure', document.getElementById('templateMsg').value);
-        templateSalvo = document.getElementById('templateMsg').value;
-        alert("Mensagem salva com sucesso!");
-    }
+    window.buscarCliente = async function() {
+        let tel = document.getElementById('buscaTelefone').value.trim();
+        if(tel.length >= 8) {
+            const snapCli = await get(ref(db, 'clientes/' + tel));
+            if(snapCli.exists()) {
+                document.getElementById('nome').value = snapCli.val().nome;
+                document.getElementById('telefone').value = tel;
+            }
+        }
+    };
 
-    function processarAtendimento(acao) {
+    window.processarAtendimento = async function(acao) {
         let nome = document.getElementById('nome').value;
         let tel = document.getElementById('telefone').value.replace(/\D/g,'');
         let dataInput = document.getElementById('dataEntrega').value;
-        if(!nome || !tel || !dataInput) return alert("Por favor, preencha todos os campos!");
+        if(!nome || !tel || !dataInput) return alert("Preencha todos os campos!");
 
         let itens = [];
         let totalItensOS = 0;
@@ -252,21 +297,23 @@
                 totalItensOS += q;
             }
         });
-        if(itens.length === 0) return alert("Indique a quantidade de pelo menos 1 item!");
+        if(itens.length === 0) return alert("Indique pelo menos 1 item!");
 
         let numeroOS = Math.floor(1000 + Math.random() * 9000);
         let dataFormatada = new Date(dataInput).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
         let textoItens = itens.join(', ');
 
-        if(!banco.clientes[tel]) banco.clientes[tel] = { nome: nome, totalServicos: 0 };
-        banco.clientes[tel].totalServicos += totalItensOS;
-        banco.ordens.push({ os: numeroOS, tel: tel, data: new Date().toISOString(), itens: textoItens, entrega: dataFormatada });
-        localStorage.setItem('db_afiacao_pure', JSON.stringify(banco));
+        // Salvar dados na nuvem (Firebase)
+        const snapCli = await get(ref(db, 'clientes/' + tel));
+        let totalAtual = snapCli.exists() ? (snapCli.val().totalServicos || 0) : 0;
+
+        await set(ref(db, 'clientes/' + tel), { nome: nome, totalServicos: totalAtual + totalItensOS });
+        await set(ref(db, 'ordens/' + numeroOS), { os: numeroOS, tel: tel, nome: nome, data: new Date().toISOString(), itens: textoItens, entrega: dataFormatada });
 
         atualizarDashboard();
 
         if(acao === 'whatsapp') {
-            let msg = templateSalvo.replace('{os}', numeroOS).replace('{nome}', nome).replace('{itens}', textoItens).replace('{entrega}', dataFormatada);
+            let msg = msgTemplate.replace('{os}', numeroOS).replace('{nome}', nome).replace('{itens}', textoItens).replace('{entrega}', dataFormatada);
             window.location.href = `https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`;
         } else if(acao === 'imprimir') {
             let cupom = `========================\n          AFIA          \n========================\nOS NUMERO: ${numeroOS}\nCLIENTE: ${nome}\nTEL: ${tel}\n------------------------\nITENS RECEBIDOS:\n${textoItens.replace(/,/g, '\n')}\n------------------------\nRETIRADA: ${dataFormatada}\n========================\n\n\n`;
@@ -276,32 +323,46 @@
             window.print();
             pBox.style.display = 'none';
         }
-    }
+    };
 
-    function puxarDadosCliente() {
+    window.puxarDadosCliente = async function() {
         let tel = document.getElementById('buscaHistorial').value.trim();
         let box = document.getElementById('resultadoHistorial');
-        if(!banco.clientes[tel]) { box.innerHTML = "<p style='color:#64748B;margin-top:10px;'>Nenhum histórico para este número.</p>"; return; }
+        if(!tel) return;
+
+        const snapCli = await get(ref(db, 'clientes/' + tel));
+        if(!snapCli.exists()) { box.innerHTML = "<p style='color:#64748B;margin-top:10px;'>Nenhum histórico.</p>"; return; }
         
-        let historicoFiltrado = banco.ordens.filter(o => o.tel === tel);
-        let html = `<div class="history-card"><b>Cliente:</b> ${banco.clientes[tel].nome}<br><b>Total de peças afiadas:</b> ${banco.clientes[tel].totalServicos}<h4 style='margin: 10px 0 5px 0;'>Histórico de Ordens:</h4>`;
-        historicoFiltrado.reverse().forEach(o => {
-            html += `• OS ${o.os} (${o.entrega}): ${o.itens}<br>`;
-        });
+        const snapOrdens = await get(ref(db, 'ordens'));
+        let html = `<div class="history-card"><b>Cliente:</b> ${snapCli.val().nome}<br><b>Total de peças afiadas na história:</b> ${snapCli.val().totalServicos || 0}<h4 style='margin: 10px 0 5px 0;'>Histórico de Ordens:</h4>`;
+        
+        if(snapOrdens.exists()) {
+            let lista = Object.values(snapOrdens.val()).filter(o => o.tel === tel);
+            lista.reverse().forEach(o => {
+                html += `• OS ${o.os} (${o.entrega}): ${o.itens}<br>`;
+            });
+        }
         html += `</div>`;
         box.innerHTML = html;
-    }
+    };
 
-    function carregarRanking() {
-        let arr = [];
-        for (let tel in banco.clientes) { arr.push({ nome: banco.clientes[tel].nome, qtd: banco.clientes[tel].totalServicos }); }
-        arr.sort((a,b) => b.qtd - a.qtd);
+    async function carregarRanking() {
+        const snapCli = await get(ref(db, 'clientes'));
+        if(!snapCli.exists()) {
+            document.getElementById('rankingClientes').innerHTML = "Nenhum cliente registrado ainda.";
+            return;
+        }
+        let clientes = Object.values(snapCli.val());
+        clientes.sort((a,b) => (b.totalServicos || 0) - (a.totalServicos || 0));
         
         let html = "<ol class='ranking-list'>";
-        arr.slice(0, 5).forEach(c => { html += `<li><b>${c.nome}</b> - ${c.qtd} ferramentas</li>`; });
+        clientes.slice(0, 5).forEach(c => { html += `<li><b>${c.nome}</b> - ${c.totalServicos || 0} ferramentas</li>`; });
         html += "</ol>";
-        document.getElementById('rankingClientes').innerHTML = arr.length ? html : "Nenhum serviço registrado ainda.";
+        document.getElementById('rankingClientes').innerHTML = html;
     }
+
+    // Iniciar app
+    init();
 </script>
 </body>
 </html>
