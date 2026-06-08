@@ -83,7 +83,7 @@ textarea{min-height:80px}
  <div class="header">
   <h1>AFIA</h1>
   <p>ORDEM DE SERVICO - AGENDA - CLIENTES</p>
-  <p class="version">VERSAO 10.0 - OFFLINE E FECHAMENTO</p>
+  <p class="version">VERSAO 10.2 - AVISO PRONTO E PAGAMENTO</p>
  </div>
 
  <section id="loginScreen" class="card">
@@ -271,6 +271,7 @@ textarea{min-height:80px}
 
    <div class="card">
     <h3 class="title">Servicos e precos</h3>
+    <p class="small">Use o botao Contar/Nao contar para escolher quais servicos ocupam quadradinho na agenda.</p>
     <div id="servicosEdit"></div>
     <label>Novo servico</label><input id="novoServico" placeholder="Ex: Alicates de cuticula">
     <label>Preco unitario</label><input id="novoPreco" type="number" step="0.01" placeholder="Ex: 15">
@@ -279,9 +280,16 @@ textarea{min-height:80px}
 
    <div class="card">
     <h3 class="title">Mensagem do WhatsApp</h3>
+    <p class="small">Mensagem enviada quando a OS e criada.</p>
     <p class="small">Use: {numero}, {nome}, {data}, {hora}, {itens}, {valor}, {pagamento}</p>
     <textarea id="templateMsg"></textarea>
-    <button class="btn btn-blue" onclick="salvarTemplate()">Salvar mensagem</button>
+    <button class="btn btn-blue" onclick="salvarTemplate()">Salvar mensagem da OS</button>
+
+    <hr>
+
+    <p class="small"><b>Mensagem de servico pronto</b></p>
+    <textarea id="templateProntoMsg"></textarea>
+    <button class="btn btn-blue" onclick="salvarTemplatePronto()">Salvar mensagem de pronto</button>
    </div>
 
    <div class="card">
@@ -343,12 +351,13 @@ const horarios = [
 ];
 
 const defaultServices = [
- {nome:"Alicates de cuticula", preco:15},
- {nome:"Facas", preco:12},
- {nome:"Tesouras", preco:15},
- {nome:"Molas", preco:5},
- {nome:"Espatulas", preco:7},
- {nome:"Outros servicos", preco:10}
+ {nome:"Alicates de cuticula", preco:15, contaAgenda:true},
+ {nome:"Facas", preco:12, contaAgenda:true},
+ {nome:"Tesouras", preco:15, contaAgenda:true},
+ {nome:"Alicate novo", preco:0, contaAgenda:false},
+ {nome:"Molas", preco:5, contaAgenda:false},
+ {nome:"Espatulas", preco:7, contaAgenda:false},
+ {nome:"Outros servicos", preco:10, contaAgenda:false}
 ];
 
 const defaultTemplate =
@@ -360,6 +369,21 @@ Sua ordem de servico foi registrada.
 
 Entrega: {data}
 Horario: {hora}
+
+*Servicos:*
+{itens}
+
+Total: {valor}
+Pagamento: {pagamento}
+
+Obrigado pela preferencia!`;
+
+const defaultTemplatePronto =
+`*AFIA - SERVICO PRONTO*
+OS: *{numero}*
+
+Ola, *{nome}*!
+Seu servico ficou pronto e ja pode ser retirado.
 
 *Servicos:*
 {itens}
@@ -422,12 +446,33 @@ function limparTelefone(t){
  return String(t || "").replace(/\D/g,"");
 }
 
+function inferirContaAgenda(nome){
+ const n = limparTexto(nome).toLowerCase();
+
+ if(n.includes("mola") || n.includes("espatu") || n.includes("alicate novo")){
+   return false;
+ }
+
+ if(n.includes("alicate") || n.includes("tesoura") || n.includes("faca")){
+   return true;
+ }
+
+ return false;
+}
+
 function normalizarServicos(servicos){
  const lista = Array.isArray(servicos) && servicos.length ? servicos : defaultServices;
- return lista.map(s => ({
-   nome: limparTexto(s.nome || "Servico"),
-   preco: Number(s.preco || 0)
- }));
+
+ return lista.map(s => {
+   const nome = limparTexto(s.nome || "Servico");
+   const temCampoAgenda = Object.prototype.hasOwnProperty.call(s, "contaAgenda");
+
+   return {
+     nome: nome,
+     preco: Number(s.preco || 0),
+     contaAgenda: temCampoAgenda ? Boolean(s.contaAgenda) : inferirContaAgenda(nome)
+   };
+ });
 }
 
 function normalizarTemplateWhatsApp(t){
@@ -469,7 +514,7 @@ async function iniciar(){
    });
    window.addEventListener("offline", atualizarStatusConexao);
 
-   cloudStatus.innerHTML = '<span class="ok">Firebase conectado - offline e fechamento ativo</span>';
+   cloudStatus.innerHTML = '<span class="ok">Firebase conectado - aviso pronto e pagamento ativo</span>';
    ajusteStatus.innerHTML = '<span class="ok">Conectado</span>';
 
    auth.onAuthStateChanged(async user=>{
@@ -681,12 +726,18 @@ async function carregarConfig(){
 
  if(!config.servicos) config.servicos = defaultServices;
  if(!config.template) config.template = defaultTemplate;
+ if(!config.templatePronto) config.templatePronto = defaultTemplatePronto;
 
  config.servicos = normalizarServicos(config.servicos);
  config.template = normalizarTemplateWhatsApp(config.template);
+ config.templatePronto = normalizarTemplateWhatsApp(config.templatePronto);
+
  await db.doc(DOC_CONFIG).set(config,{merge:true});
 
  templateMsg.value = config.template;
+ if(document.getElementById("templateProntoMsg")){
+   templateProntoMsg.value = config.templatePronto;
+ }
 
  renderServicosOS();
  renderServicosEdit();
@@ -763,9 +814,11 @@ function renderServicosOS(){
  servicosOS.innerHTML = "";
 
  config.servicos.forEach((s,i)=>{
+   const agendaTxt = s.contaAgenda ? "ocupa agenda" : "nao ocupa agenda";
+
    servicosOS.innerHTML += `
     <div class="qty-row">
-     <div class="qty-name">${limparTexto(s.nome)}<span>${moeda(s.preco)} cada</span></div>
+     <div class="qty-name">${limparTexto(s.nome)}<span>${moeda(s.preco)} cada - ${agendaTxt}</span></div>
      <input type="number" min="0" value="0" id="svc_${i}" oninput="calcularTotal()">
     </div>`;
  });
@@ -811,10 +864,41 @@ function calcularTotalServicos(itens){
  return total;
 }
 
-function getPecasAgenda(os){
+function servicoContaNaAgenda(nomeServico){
+ const nomeLimpo = limparTexto(nomeServico);
+ const servico = (config.servicos || []).find(s => limparTexto(s.nome).toLowerCase() === nomeLimpo.toLowerCase());
+
+ if(servico){
+   return Boolean(servico.contaAgenda);
+ }
+
+ return inferirContaAgenda(nomeLimpo);
+}
+
+function calcularTotalAgendaServicos(itens){
+ let total = 0;
+
+ Object.entries(itens || {}).forEach(([nome,qtd])=>{
+   if(servicoContaNaAgenda(nome)){
+     total += Number(qtd || 0);
+   }
+ });
+
+ return total;
+}
+
+function getTotalServicosOS(os){
  const somaItens = calcularTotalServicos(os.itens || {});
  if(somaItens > 0) return somaItens;
- return Number(os.pecas || os.pecasAgenda || 0);
+ return Number(os.pecas || 0);
+}
+
+function getPecasAgenda(os){
+ if(os.pecasAgenda !== undefined){
+   return Number(os.pecasAgenda || 0);
+ }
+
+ return calcularTotalAgendaServicos(os.itens || {});
 }
 
 function mapaVazio(){
@@ -1077,14 +1161,17 @@ async function salvarOS(e){
  const data = dataEntrega.value;
  const hora = horaEntrega.value;
  const situacaoOS = situacao.value || "confirmado";
+ const totalAgenda = calcularTotalAgendaServicos(itens);
 
  let alocacoes = {};
 
- try{
-   alocacoes = calcularAlocacoes(data, hora, totalServicos);
- }catch(err){
-   alert(limparTexto(err.message));
-   return;
+ if(totalAgenda > 0){
+   try{
+     alocacoes = calcularAlocacoes(data, hora, totalAgenda);
+   }catch(err){
+     alert(limparTexto(err.message));
+     return;
+   }
  }
 
  const os = {
@@ -1094,7 +1181,7 @@ async function salvarOS(e){
    hora: hora,
    itens: itens,
    pecas: totalServicos,
-   pecasAgenda: totalServicos,
+   pecasAgenda: totalAgenda,
    alocacoes: alocacoes,
    situacao: situacaoOS,
    observacao: limparTexto(observacao.value.trim()),
@@ -1143,8 +1230,9 @@ function mostrarAcoesDepoisDeSalvar(os){
    resumo.innerHTML = `
     <b>OS ${numeroTextoOS(os)} - ${limparTexto(os.nome)}</b><br>
     Entrega: ${dataBR(os.data)} as ${os.hora}<br>
-    Servicos: ${Number(os.pecas || 0)}<br>
-    Distribuicao: ${dist}<br>
+    Servicos totais: ${Number(os.pecas || 0)}<br>
+    Ocupa agenda: ${getPecasAgenda(os)}<br>
+    Distribuicao: ${dist || "-"}<br>
     Total: ${moeda(os.valor)}
    `;
  }
@@ -1178,14 +1266,8 @@ function itensTexto(os, sep){
    .join(sep);
 }
 
-function enviarWhatsApp(os){
- let tel = limparTelefone(os.telefone);
-
- if(!tel.startsWith("55")){
-   tel = "55" + tel;
- }
-
- let msg = normalizarTemplateWhatsApp(config.template || defaultTemplate)
+function montarMensagemWhatsApp(os, template){
+ return normalizarTemplateWhatsApp(template || defaultTemplate)
    .replaceAll("{numero}", numeroTextoOS(os))
    .replaceAll("{nome}", limparTexto(os.nome))
    .replaceAll("{data}", dataBR(os.data))
@@ -1193,8 +1275,77 @@ function enviarWhatsApp(os){
    .replaceAll("{itens}", itensTexto(os,"\n"))
    .replaceAll("{valor}", moeda(os.valor))
    .replaceAll("{pagamento}", limparTexto(os.pagamento));
+}
 
- window.open("https://wa.me/"+tel+"?text="+encodeURIComponent(msg), "_blank");
+function abrirWhatsAppOS(os, mensagem){
+ let tel = limparTelefone(os.telefone);
+
+ if(!tel.startsWith("55")){
+   tel = "55" + tel;
+ }
+
+ window.open("https://wa.me/"+tel+"?text="+encodeURIComponent(mensagem), "_blank");
+}
+
+function enviarWhatsApp(os){
+ const msg = montarMensagemWhatsApp(os, config.template || defaultTemplate);
+ abrirWhatsAppOS(os, msg);
+}
+
+async function avisarServicoPronto(id){
+ const os = ordens.find(o=>o.id === id);
+ if(!os) return;
+
+ const atualizado = {
+   ...os,
+   status:"Pronto",
+   avisoProntoEnviadoEm:new Date().toISOString()
+ };
+
+ try{
+   await db.collection(COL_ORDENS).doc(id).update({
+     status:"Pronto",
+     avisoProntoEnviadoEm:firebase.firestore.FieldValue.serverTimestamp()
+   });
+ }catch(e){
+   alert("Nao consegui marcar como pronto: "+limparTexto(e.message));
+   return;
+ }
+
+ const msg = montarMensagemWhatsApp(atualizado, config.templatePronto || defaultTemplatePronto);
+ abrirWhatsAppOS(atualizado, msg);
+}
+
+async function marcarComoPago(id){
+ const os = ordens.find(o=>o.id === id);
+ if(!os) return;
+
+ try{
+   await db.collection(COL_ORDENS).doc(id).update({
+     pagamento:"Pago",
+     pagoEm:firebase.firestore.FieldValue.serverTimestamp()
+   });
+
+   alert("OS "+numeroTextoOS(os)+" marcada como paga.");
+ }catch(e){
+   alert("Erro ao marcar como pago: "+limparTexto(e.message));
+ }
+}
+
+async function marcarComoRetirado(id){
+ const os = ordens.find(o=>o.id === id);
+ if(!os) return;
+
+ try{
+   await db.collection(COL_ORDENS).doc(id).update({
+     status:"Retirado",
+     retiradoEm:firebase.firestore.FieldValue.serverTimestamp()
+   });
+
+   alert("OS "+numeroTextoOS(os)+" marcada como retirada.");
+ }catch(e){
+   alert("Erro ao marcar como retirado: "+limparTexto(e.message));
+ }
 }
 
 function escaparHtml(txt){
@@ -1229,7 +1380,8 @@ function htmlViaLoja(os){
    <div class="linha"><b>Servicos</b></div>
    ${linhasItens}
    <hr>
-   <div class="linha">Total de servicos: <b>${Number(os.pecas || getPecasAgenda(os) || 0)}</b></div>
+   <div class="linha">Total de servicos: <b>${Number(os.pecas || getTotalServicosOS(os) || 0)}</b></div>
+   <div class="linha">Ocupa agenda: <b>${getPecasAgenda(os)}</b></div>
    <div class="linha">Distribuicao: ${escaparHtml(dist || "-")}</div>
    <div class="linha">Valor: <b>${escaparHtml(moeda(os.valor))}</b></div>
    <div class="linha">Pagamento: ${escaparHtml(limparTexto(os.pagamento))}</div>
@@ -1372,13 +1524,16 @@ function renderAgenda(){
     <p>${limparTexto(os.telefone)}</p>
     <p>${itensTexto(os," | ")}</p>
     <p>${moeda(os.valor)} | ${limparTexto(os.pagamento)}</p>
-    <p>Agenda: <b>${getPecasAgenda(os)}</b> vaga(s) | Total da OS: <b>${Number(os.pecas || getPecasAgenda(os) || 0)}</b></p>
+    <p>Agenda: <b>${getPecasAgenda(os)}</b> vaga(s) | Total da OS: <b>${Number(os.pecas || getTotalServicosOS(os) || 0)}</b></p>
     <p class="small">Distribuicao: ${dist}</p>
     <p>Situacao: <b>${sitTxt}</b></p>
     <p>Status: <b>${limparTexto(os.status)}</b></p>
     ${os.observacao ? `<p>${limparTexto(os.observacao)}</p>` : ""}
     ${btnChegada}
-    <button class="btn btn-blue" onclick="reenviar('${os.id}')">Enviar WhatsApp</button>
+    <button class="btn btn-blue" onclick="reenviar('${os.id}')">Enviar WhatsApp da OS</button>
+    <button class="btn" onclick="avisarServicoPronto('${os.id}')">Avisar que esta pronto</button>
+    <button class="btn btn-blue" onclick="marcarComoPago('${os.id}')">Marcar como pago</button>
+    <button class="btn btn-gray" onclick="marcarComoRetirado('${os.id}')">Marcar como retirado</button>
     <button class="btn btn-blue" onclick="imprimir('${os.id}')">Abrir via loja</button>
     <button class="btn btn-red" onclick="apagarOS('${os.id}')">Apagar</button>
    `;
@@ -1448,7 +1603,7 @@ function resumoFinanceiro(listaOS, listaDespesas){
 
  listaOS.forEach(os=>{
    const valor = Number(os.valor || 0);
-   r.servicos += getPecasAgenda(os);
+   r.servicos += getTotalServicosOS(os);
    r.faturamento += valor;
 
    if(pagamentoFoiRecebido(os)){
@@ -1783,7 +1938,7 @@ function renderClientes(){
    }
 
    mapa[chave].visitas += 1;
-   mapa[chave].pecas += getPecasAgenda(os);
+   mapa[chave].pecas += getTotalServicosOS(os);
    mapa[chave].valor += Number(os.valor || 0);
    mapa[chave].ordens.push(os);
 
@@ -1813,7 +1968,7 @@ function renderClientes(){
    const ultima = c.ordens[0];
 
    const historico = c.ordens.map(os=>{
-     return `<p class="small">OS ${numeroTextoOS(os)} - ${dataBR(os.data)} as ${os.hora} - ${getPecasAgenda(os)} servicos - ${moeda(os.valor)} - ${limparTexto(os.status)}</p>`;
+     return `<p class="small">OS ${numeroTextoOS(os)} - ${dataBR(os.data)} as ${os.hora} - ${getTotalServicosOS(os)} servicos - ${moeda(os.valor)} - ${limparTexto(os.status)}</p>`;
    }).join("");
 
    const d = document.createElement("div");
@@ -1855,17 +2010,19 @@ async function confirmarChegada(id){
  const qtd = getPecasAgenda(os);
  let alocacoes = {};
 
- try{
-   alocacoes = calcularAlocacoes(os.data, os.hora, qtd, id);
- }catch(err){
-   alert(limparTexto(err.message));
-   return;
+ if(qtd > 0){
+   try{
+     alocacoes = calcularAlocacoes(os.data, os.hora, qtd, id);
+   }catch(err){
+     alert(limparTexto(err.message));
+     return;
+   }
  }
 
  await db.collection(COL_ORDENS).doc(id).update({
    situacao:"confirmado",
    status:"Recebido",
-   pecas:qtd,
+   pecas:getTotalServicosOS(os),
    pecasAgenda:qtd,
    alocacoes:alocacoes
  });
@@ -1881,10 +2038,14 @@ function renderServicosEdit(){
  servicosEdit.innerHTML = "";
 
  config.servicos.forEach((s,i)=>{
+   const agendaTxt = s.contaAgenda ? "Conta na agenda" : "Nao conta na agenda";
+   const btnTxt = s.contaAgenda ? "Nao contar" : "Contar";
+
    servicosEdit.innerHTML += `
     <div class="service-edit">
-     <b>${limparTexto(s.nome)}</b>
+     <b>${limparTexto(s.nome)}<br><span class="small">${agendaTxt}</span></b>
      <span>${moeda(s.preco)}</span>
+     <button class="btn btn-blue" onclick="alternarContaAgenda(${i})">${btnTxt}</button>
      <button class="btn btn-red" onclick="removerServico(${i})">Excluir</button>
     </div>`;
  });
@@ -1893,6 +2054,7 @@ function renderServicosEdit(){
 async function salvarConfig(){
  config.servicos = normalizarServicos(config.servicos);
  config.template = normalizarTemplateWhatsApp(config.template);
+ config.templatePronto = normalizarTemplateWhatsApp(config.templatePronto || defaultTemplatePronto);
  await db.doc(DOC_CONFIG).set(config,{merge:true});
 
  renderServicosOS();
@@ -1902,14 +2064,22 @@ async function salvarConfig(){
 async function adicionarServico(){
  if(!novoServico.value || !novoPreco.value) return;
 
+ const nomeNovo = limparTexto(novoServico.value.trim());
+
  config.servicos.push({
-   nome: limparTexto(novoServico.value.trim()),
-   preco: Number(novoPreco.value)
+   nome: nomeNovo,
+   preco: Number(novoPreco.value),
+   contaAgenda: inferirContaAgenda(nomeNovo)
  });
 
  novoServico.value = "";
  novoPreco.value = "";
 
+ await salvarConfig();
+}
+
+async function alternarContaAgenda(i){
+ config.servicos[i].contaAgenda = !Boolean(config.servicos[i].contaAgenda);
  await salvarConfig();
 }
 
@@ -1924,7 +2094,14 @@ async function salvarTemplate(){
  config.template = normalizarTemplateWhatsApp(templateMsg.value);
  templateMsg.value = config.template;
  await salvarConfig();
- alert("Mensagem salva.");
+ alert("Mensagem da OS salva.");
+}
+
+async function salvarTemplatePronto(){
+ config.templatePronto = normalizarTemplateWhatsApp(templateProntoMsg.value);
+ templateProntoMsg.value = config.templatePronto;
+ await salvarConfig();
+ alert("Mensagem de servico pronto salva.");
 }
 
 async function salvarLoginConfig(){
