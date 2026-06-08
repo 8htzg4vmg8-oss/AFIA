@@ -1,368 +1,1156 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AFIA - Sistema de Gestão</title>
-    <style>
-        :root { 
-            --primary: #1E293B; /* Azul Escuro Profissional */
-            --accent: #2563EB;  /* Azul Moderno */
-            --success: #22C55E; /* Verde WhatsApp */
-            --bg: #F8FAFC; 
-            --card: #FFFFFF;
-        }
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background-color: var(--bg); color: #0F172A; }
-        
-        /* TELA DE LOGIN */
-        .login-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--primary); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .login-box { background: white; padding: 30px; border-radius: 12px; width: 85%; max-width: 360px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .login-box h3 { margin-top: 0; color: var(--primary); font-size: 22px; }
-        
-        /* MENU SUPERIOR */
-        .nav-tabs { display: flex; background: var(--primary); padding: 5px; position: sticky; top: 0; z-index: 900; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .tab-btn { flex: 1; padding: 14px; color: white; background: transparent; border: none; font-weight: bold; font-size: 14px; cursor: pointer; opacity: 0.7; transition: 0.2s; }
-        .tab-btn.active { opacity: 1; border-bottom: 4px solid var(--accent); }
-        
-        .container { max-width: 480px; margin: 15px auto; padding: 0 15px; box-sizing: border-box; }
-        .page { display: none; } .page.active { display: block; }
-        
-        /* MARCA / LOGO */
-        .brand-header { text-align: center; padding: 15px 0; }
-        .brand-logo { font-size: 32px; font-weight: bold; color: var(--primary); letter-spacing: 2px; }
-        .brand-sub { font-size: 12px; color: #64748B; text-transform: uppercase; margin-top: 2px; font-weight: 600; letter-spacing: 1px; }
-        
-        /* RESUMO DO DIA (DASHBOARD) */
-        .dashboard { display: flex; gap: 10px; margin-bottom: 20px; }
-        .dash-card { flex: 1; background: var(--card); padding: 12px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #E2E8F0; }
-        .dash-num { font-size: 20px; font-weight: bold; color: var(--accent); }
-        .dash-txt { font-size: 11px; color: #64748B; font-weight: 500; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AFIA - Sistema de OS</title>
 
-        /* FORMULÁRIOS E INPUTS */
-        .form-group { background: var(--card); padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #E2E8F0; margin-bottom: 15px; }
-        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 14px; color: #334155; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 6px; box-sizing: border-box; font-size: 16px; background: #F1F5F9; transition: 0.2s; }
-        input:focus, textarea:focus { background: #FFF; border-color: var(--accent); outline: none; }
-        
-        /* LINHA DE QUANTIDADE DE PEÇAS */
-        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F1F5F9; }
-        .item-row:last-child { border-bottom: none; }
-        .item-row label { margin: 0; font-size: 15px; font-weight: 500; }
-        .item-row input { width: 75px; text-align: center; margin: 0; padding: 8px; background: #FFF; }
-        
-        /* BOTÕES */
-        .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; margin-top: 12px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-zap { background: var(--success); }
-        .btn-print { background: var(--accent); }
-        
-        /* HISTÓRICO */
-        .history-card { background: white; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .ranking-list { background: white; padding: 15px; border-radius: 8px; border: 1px solid #E2E8F0; padding-left: 35px; }
-        .ranking-list li { margin-bottom: 8px; font-size: 15px; }
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
-        @media print {
-            body * { visibility: hidden; }
-            #printReceipt, #printReceipt * { visibility: visible; }
-            #printReceipt { position: absolute; left: 0; top: 0; width: 100%; font-family: monospace; font-size: 14px; color: black; }
-        }
-    </style>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:12px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f2f2f7;color:#1d1d1f}
+.container{max-width:540px;margin:0 auto}
+.header{text-align:center;margin:14px 0}
+.header h1{margin:0;font-size:34px;letter-spacing:2px}
+.header p{margin:5px 0 0;color:#777;font-size:12px;font-weight:800;letter-spacing:.8px}
+.version{font-size:10px!important;color:#999!important;font-weight:700!important;letter-spacing:0!important}
+.card{background:#fff;border-radius:16px;padding:15px;margin-bottom:12px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
+.title{color:#007aff;font-size:14px;font-weight:900;text-transform:uppercase;margin:0 0 12px}
+.tabs{display:flex;gap:5px;background:#e5e5ea;padding:5px;border-radius:14px;margin-bottom:12px}
+.tabs button{flex:1;border:0;background:transparent;border-radius:10px;padding:10px 2px;font-size:12px;font-weight:800}
+.tabs button.active{background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.12)}
+.stats{display:flex;gap:8px;margin-bottom:12px}
+.stat{flex:1;background:#fff;border-radius:14px;text-align:center;padding:12px 4px;font-size:12px;color:#777;font-weight:800}
+.stat b{display:block;color:#111;font-size:21px}
+.hidden{display:none}
+label{display:block;margin:10px 0 5px;font-size:13px;font-weight:800}
+input,select,textarea{width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:10px;font-size:16px;background:#fff;font-family:inherit}
+textarea{min-height:80px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.btn{width:100%;border:0;border-radius:12px;padding:13px;margin-top:10px;font-size:15px;font-weight:900;color:#fff;background:#34c759}
+.btn-blue{background:#007aff}.btn-red{background:#ff3b30}.btn-gray{background:#777}
+.small{font-size:12px;color:#777}
+.ok{color:#23a647;font-weight:900}.bad{color:#ff3b30;font-weight:900}
+.qty-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid #eee;padding:9px 0}
+.qty-row:last-child{border-bottom:0}
+.qty-name{flex:1;font-weight:800;font-size:14px}
+.qty-name span{display:block;color:#777;font-size:11px;font-weight:700}
+.qty-row input{width:74px;text-align:center;padding:8px}
+.agenda-table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px;background:#fff}
+.agenda-table td,.agenda-table th{border:1px solid #e5e5ea;padding:8px;text-align:center}
+.agenda-table th{font-size:12px;color:#777;background:#f8f8fa}
+.time{font-weight:900;width:72px}
+.slots{display:flex;justify-content:center;gap:7px}
+.slot{width:34px;height:34px;border:3px solid #8e8e93;border-radius:9px;background:#fff}
+.slot.on{background:#ff3b30;border-color:#ff3b30}.slot.pending{background:#ff9500;border-color:#ff9500}
+.interval td{background:#f1f1f4;color:#777;font-weight:900}
+.os-card{border-left:5px solid #007aff}
+.os-card p{margin:5px 0;font-size:14px}
+.service-edit{display:flex;gap:6px;align-items:center;border-bottom:1px solid #eee;padding:8px 0}
+.service-edit b{flex:1}
+.service-edit button{width:auto;margin:0;padding:8px 10px;border-radius:8px}
+#printArea{display:none}
+@media print{
+ body>*:not(#printArea){display:none!important}
+ #printArea{display:block!important;font-family:monospace;font-size:12px;width:58mm}
+ .print-line{margin:3px 0}
+}
+</style>
 </head>
+
 <body>
-
-<div id="loginScreen" class="login-screen">
-    <div class="login-box">
-        <h3>⚔️ AFIA</h3>
-        <p id="loginInstructions" style="color: #64748B; font-size: 14px; margin-bottom: 20px;">Carregando conexão segura...</p>
-        <input type="password" id="senhaInput" placeholder="Sua senha" style="display:none;">
-        <button id="loginBtn" class="btn btn-print" onclick="verificarSenha()" style="display:none;">Entrar</button>
-    </div>
-</div>
-
-<nav class="nav-tabs">
-    <button class="tab-btn active" onclick="mudarAba('novaOS')">📝 Nova OS</button>
-    <button class="tab-btn" onclick="mudarAba('historico')">📊 Clientes</button>
-    <button class="tab-btn" onclick="mudarAba('config')">⚙️ Ajustes</button>
-</nav>
+<div id="printArea"></div>
 
 <div class="container">
-    
-    <div id="page-novaOS" class="page active">
-        <div class="brand-header">
-            <div class="brand-logo">AFIA</div>
-            <div class="brand-sub">Alta Cutelaria & Afiação Profissional</div>
-        </div>
+ <div class="header">
+  <h1>AFIA</h1>
+  <p>ORDEM DE SERVICO - AGENDA - CLIENTES</p>
+  <p class="version">VERSAO 7.0 - LOGIN FIREBASE</p>
+ </div>
 
-        <div class="dashboard">
-            <div class="dash-card"><div class="dash-num" id="dashAtendimentos">0</div><div class="dash-txt">Atendimentos</div></div>
-            <div class="dash-card"><div class="dash-num" id="dashPecas">0</div><div class="dash-txt">Peças Recebidas</div></div>
-        </div>
-        
-        <div class="form-group">
-            <label>🔍 Busca Rápida (Telefone):</label>
-            <input type="text" id="buscaTelefone" placeholder="Digite para buscar cadastro..." oninput="buscarCliente()">
-        </div>
-        
-        <form id="formOS">
-            <div class="form-group">
-                <label>Nome do Cliente:</label>
-                <input type="text" id="nome" required>
-                <label style="margin-top: 10px;">Telefone / WhatsApp:</label>
-                <input type="text" id="telefone" placeholder="Ex: 32999999999" required>
-            </div>
+ <section id="loginScreen" class="card">
+  <h3 class="title">Login</h3>
+  <label>E-mail do Firebase</label><input id="loginUser" type="email" autocomplete="username" placeholder="seuemail@gmail.com">
+  <label>Senha</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Senha do Firebase">
+  <button class="btn" onclick="login()">Entrar</button>
+  <p class="small">Agora o acesso usa Firebase Authentication. Entre com o e-mail e senha cadastrados no Firebase.</p>
+ </section>
 
-            <div class="form-group">
-                <label style="color: var(--accent); margin-bottom: 10px;">🛠️ Marcar Quantidades:</label>
-                <div class="item-row"><label>✂️ Alicates de Cutícula</label><input type="number" id="alicates" value="0" min="0"></div>
-                <div class="item-row"><label>🔪 Facas</label><input type="number" id="facas" value="0" min="0"></div>
-                <div class="item-row"><label>✂️ Tesouras</label><input type="number" id="tesouras" value="0" min="0"></div>
-                <div class="item-row"><label>🌀 Molas Extras</label><input type="number" id="molas" value="0" min="0"></div>
-                <div class="item-row"><label>📦 Outros Serviços</label><input type="number" id="outros" value="0" min="0"></div>
-            </div>
+ <main id="appScreen" class="hidden">
+  <div class="card"><div id="cloudStatus">Conectando ao Firebase...</div></div>
 
-            <div class="form-group">
-                <label>📅 Data e Hora da Entrega:</label>
-                <input type="datetime-local" id="dataEntrega" required>
-            </div>
+  <div class="tabs">
+   <button id="btnAgenda" class="active" onclick="showTab('agenda')">Agenda</button>
+   <button id="btnNova" onclick="showTab('nova')">Nova OS</button>
+   <button id="btnClientes" onclick="showTab('clientes')">Clientes</button>
+   <button id="btnAjustes" onclick="showTab('ajustes')">Ajustes</button>
+  </div>
 
-            <button type="button" class="btn btn-zap" onclick="processarAtendimento('whatsapp')">📱 Enviar via WhatsApp</button>
-            <button type="button" class="btn btn-print" onclick="processarAtendimento('imprimir')">🖨️ Imprimir Via Oficina</button>
-        </form>
+  <div class="stats">
+   <div class="stat"><b id="statPedidos">0</b>Pedidos</div>
+   <div class="stat"><b id="statPecas">0</b>Servicos</div>
+   <div class="stat"><b id="statValor">R$ 0,00</b>Faturamento</div>
+  </div>
+
+  <section id="agenda">
+   <div class="card">
+    <h3 class="title">Agenda</h3>
+    <label>Data</label><input type="date" id="agendaData" onchange="renderAgenda()">
+    <div id="agendaGrid" style="margin-top:12px"></div>
+   </div>
+   <h3 style="font-size:15px;margin:14px 0 8px">Ordens do dia</h3>
+   <div id="agendaLista"></div>
+  </section>
+
+  <section id="nova" class="hidden">
+   <form class="card" onsubmit="salvarOS(event)">
+    <h3 class="title">Nova OS</h3>
+
+    <label>Telefone / WhatsApp</label>
+    <input id="telefone" inputmode="tel" required oninput="buscarClientePorTelefone()" placeholder="Digite o telefone primeiro">
+
+    <label>Nome do cliente</label>
+    <input id="nome" required placeholder="Preenche automatico se ja for cliente">
+
+    <div class="row">
+     <div><label>Data da entrega</label><input type="date" id="dataEntrega" required></div>
+     <div><label>Horario</label><select id="horaEntrega" required></select></div>
     </div>
 
-    <div id="page-historico" class="page">
-        <div class="form-group">
-            <h3>🔍 Histórico por Cliente</h3>
-            <input type="text" id="buscaHistorial" placeholder="Digite o telefone do cliente..." oninput="puxarDadosCliente()">
-            <div id="resultadoHistorial"></div>
-        </div>
-
-        <div class="form-group">
-            <h3>🏆 Clientes VIPs (Mais Atendimentos)</h3>
-            <div id="rankingClientes"></div>
-        </div>
+    <div class="card" style="box-shadow:none;border:1px solid #eee;padding:10px;margin-top:12px">
+     <h3 class="title">Servicos</h3>
+     <div id="servicosOS"></div>
     </div>
 
-    <div id="page-config" class="page">
-        <div class="form-group">
-            <h3>📝 Personalizar Notificação do WhatsApp</h3>
-            <p style="font-size: 13px; color: #64748B; line-height: 1.4;">Tags automáticas: <b>{os}</b>, <b>{nome}</b>, <b>{itens}</b>, <b>{entrega}</b></p>
-            <textarea id="templateMsg" rows="6"></textarea>
-            <button class="btn btn-print" onclick="salvarTemplate()">Salvar Texto Padrão</button>
-        </div>
+    <label>Observacao</label>
+    <textarea id="observacao" placeholder="Ex: ponta quebrada, trocar mola, Staleks..."></textarea>
 
-        <div class="form-group">
-            <h3>🔒 Segurança (Alterar Senha)</h3>
-            <label>Nova Senha do Sistema:</label>
-            <input type="password" id="novaSenhaConfig" placeholder="Digite a nova senha">
-            <button class="btn btn-print" style="background-color: #475569;" onclick="alterarSenhaDoSistema()">Atualizar Minha Senha</button>
-        </div>
-    </div>
+    <label>Situacao da OS</label>
+    <select id="situacao">
+     <option value="confirmado">Cliente deixou o servico / balcao</option>
+     <option value="agendado">Apenas agendamento / ainda vai trazer</option>
+    </select>
+
+    <label>Status de producao</label>
+    <select id="status">
+     <option>Recebido</option>
+     <option>Na bancada</option>
+     <option>Pronto</option>
+     <option>Retirado</option>
+    </select>
+
+    <label>Pagamento</label>
+    <select id="pagamento">
+     <option>Pagar na retirada</option>
+     <option>Pago</option>
+    </select>
+
+    <label>Valor total</label>
+    <input id="valorTotal" type="number" step="0.01" required>
+
+    <button class="btn" type="submit">Salvar OS</button>
+   </form>
+
+   <div id="posSalvarPanel" class="card hidden">
+    <h3 class="title">OS salva com sucesso</h3>
+    <p id="posSalvarResumo" class="small"></p>
+    <button class="btn btn-blue" onclick="enviarUltimaOS()">Enviar via da cliente no WhatsApp</button>
+    <button class="btn btn-blue" onclick="imprimirUltimaOS()">Abrir minha via para imprimir/PDF</button>
+    <button class="btn" onclick="novaOSDepoisDeSalvar()">Fazer nova OS</button>
+    <button class="btn btn-gray" onclick="showTab('agenda')">Ver agenda</button>
+   </div>
+  </section>
+
+  <section id="clientes" class="hidden">
+   <div class="card">
+    <h3 class="title">Clientes</h3>
+    <label>Pesquisar</label><input id="buscaCliente" oninput="renderClientes()" placeholder="Nome ou telefone">
+   </div>
+   <div id="clientesLista"></div>
+  </section>
+
+  <section id="ajustes" class="hidden">
+   <div class="card">
+    <h3 class="title">Ajustes</h3>
+    <p><b>Status:</b> <span id="ajusteStatus">Verificando...</span></p>
+    <button class="btn btn-gray" onclick="logout()">Sair</button>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Servicos e precos</h3>
+    <div id="servicosEdit"></div>
+    <label>Novo servico</label><input id="novoServico" placeholder="Ex: Alicates de cuticula">
+    <label>Preco unitario</label><input id="novoPreco" type="number" step="0.01" placeholder="Ex: 15">
+    <button class="btn btn-blue" onclick="adicionarServico()">Adicionar servico</button>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Mensagem do WhatsApp</h3>
+    <p class="small">Use: {nome}, {data}, {hora}, {itens}, {valor}, {pagamento}</p>
+    <textarea id="templateMsg"></textarea>
+    <button class="btn btn-blue" onclick="salvarTemplate()">Salvar mensagem</button>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Seguranca Firebase</h3>
+    <p class="small">Login atual: <b id="emailLogado">-</b></p>
+    <p class="small">Para trocar senha ou criar outro usuario, use o painel do Firebase em Authentication &gt; Users.</p>
+   </div>
+  </section>
+ </main>
 </div>
 
-<div id="printReceipt" style="display:none;"></div>
+<script>
+const firebaseConfig = {
+ apiKey: "AIzaSyCXY6zQ6K-roWFFNBCU--LF5enWpVCoLpc",
+ authDomain: "afia-37aa8.firebaseapp.com",
+ databaseURL: "https://afia-37aa8-default-rtdb.firebaseio.com",
+ projectId: "afia-37aa8",
+ storageBucket: "afia-37aa8.firebasestorage.app",
+ messagingSenderId: "961300018208",
+ appId: "1:961300018208:web:3ee1ebf3020f3cd72fb845"
+};
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+let db = null;
+let auth = null;
+let unsubscribeOrdens = null;
+let ordens = [];
+let config = {};
+let ultimaOSSalva = null;
 
-    // Suas credenciais exclusivas injetadas
-    const firebaseConfig = {
-      apiKey: "AIzaSyCXY6zQ6K-roWFFNBCU--LF5enWpVCoLpc",
-      authDomain: "afia-37aa8.firebaseapp.com",
-      projectId: "afia-37aa8",
-      storageBucket: "afia-37aa8.firebasestorage.app",
-      messagingSenderId: "961300018208",
-      appId: "1:961300018208:web:ac2c0b5fbdca48402fb845",
-      databaseURL: "https://afia-37aa8-default-rtdb.firebaseio.com"
-    };
+const COL_ORDENS = "ordens_afia_v2";
+const DOC_CONFIG = "config/afia";
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+const horarios = [
+ "09:00","09:30","10:00","10:30","11:00","11:30",
+ "12:00","12:30","13:00","14:30","15:00","15:30","16:00","16:30"
+];
 
-    let senhaMestre = "";
-    let msgTemplate = "";
+const defaultServices = [
+ {nome:"Alicates de cuticula", preco:15},
+ {nome:"Facas", preco:12},
+ {nome:"Tesouras", preco:15},
+ {nome:"Molas", preco:5},
+ {nome:"Espatulas", preco:7},
+ {nome:"Outros servicos", preco:10}
+];
 
-    // Inicialização do Sistema puxando dados da Nuvem
-    async function init() {
-        try {
-            // Puxar Senha
-            const snapSenha = await get(ref(db, 'config/senha'));
-            if (snapSenha.exists()) {
-                senhaMestre = snapSenha.val();
-                document.getElementById('loginInstructions').innerText = "Painel de Gestão Avançada";
-                document.getElementById('loginBtn').innerText = "Entrar";
-            } else {
-                document.getElementById('loginInstructions').innerText = "✨ Primeiro Acesso: Cadastre sua senha definitiva agora.";
-                document.getElementById('loginBtn').innerText = "Cadastrar Senha";
-            }
-            document.getElementById('senhaInput').style.display = "block";
-            document.getElementById('loginBtn').style.display = "block";
+const defaultTemplate =
+`*AFIA - ORDEM DE SERVICO*
 
-            // Puxar Template de Mensagem
-            const snapMsg = await get(ref(db, 'config/templateMsg'));
-            if (snapMsg.exists()) {
-                msgTemplate = snapMsg.val();
-            } else {
-                msgTemplate = "*AFIA - ORDEM DE SERVIÇO Nº {os}*\n\nOlá, *{nome}*!\nConfirmamos o recebimento das suas ferramentas:\n\n📝 *Serviço:* {itens}\n📅 *Previsão de Entrega:* {entrega}\n\n_Agradecemos a preferência! Seus alicates serão entregues embalados e protegidos._";
-                await set(ref(db, 'config/templateMsg'), msgTemplate);
-            }
-            document.getElementById('templateMsg').value = msgTemplate;
+Ola, *{nome}*!
+Sua ordem de servico foi registrada.
 
-            atualizarDashboard();
-        } catch (e) {
-            console.error(e);
-            alert("Erro ao conectar à nuvem. Verifique se ativou o Realtime Database no Firebase!");
-        }
-    }
+Entrega: {data}
+Horario: {hora}
 
-    window.verificarSenha = async function() {
-        let input = document.getElementById('senhaInput').value;
-        if (!input) return alert("Por favor, digite uma senha!");
+*Servicos:*
+{itens}
 
-        if (!senhaMestre) {
-            await set(ref(db, 'config/senha'), input);
-            senhaMestre = input;
-            alert("Senha master guardada em nuvem com sucesso!");
-            document.getElementById('loginScreen').style.display = 'none';
-        } else {
-            if (input === senhaMestre) {
-                document.getElementById('loginScreen').style.display = 'none';
-            } else { alert("Senha incorreta!"); }
-        }
-    };
+Total: {valor}
+Pagamento: {pagamento}
 
-    window.alterarSenhaDoSistema = async function() {
-        let nova = document.getElementById('novaSenhaConfig').value;
-        if (!nova) return alert("Digite a nova senha!");
-        await set(ref(db, 'config/senha'), nova);
-        senhaMestre = nova;
-        document.getElementById('novaSenhaConfig').value = "";
-        alert("Senha atualizada na nuvem!");
-    };
+Obrigado pela preferencia!`;
 
-    window.salvarTemplate = async function() {
-        let texto = document.getElementById('templateMsg').value;
-        await set(ref(db, 'config/templateMsg'), texto);
-        msgTemplate = texto;
-        alert("Mensagem de envio atualizada na nuvem!");
-    };
+function hoje(){
+ const d = new Date();
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
 
-    window.mudarAba = function(aba) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('page='+aba).classList.add('active');
-        if(event) event.currentTarget.classList.add('active');
-        if(aba === 'historico') carregarRanking();
-    };
+function dataBR(x){
+ if(!x) return "";
+ const p = String(x).split("-");
+ if(p.length !== 3) return x;
+ return p[2]+"/"+p[1]+"/"+p[0];
+}
 
-    async function atualizarDashboard() {
-        const snapOrdens = await get(ref(db, 'ordens'));
-        if(snapOrdens.exists()) {
-            let ordens = snapOrdens.val();
-            let lista = Object.values(ordens);
-            document.getElementById('dashAtendimentos').innerText = lista.length;
-            
-            let totalPecas = 0;
-            lista.forEach(o => {
-                let matches = o.itens.match(/\d+/g);
-                if(matches) { matches.forEach(n => totalPecas += parseInt(n)); }
-            });
-            document.getElementById('dashPecas').innerText = totalPecas;
-        }
-    }
+function moeda(v){
+ return "R$ "+Number(v || 0).toFixed(2).replace(".",",");
+}
 
-    window.buscarCliente = async function() {
-        let tel = document.getElementById('buscaTelefone').value.trim();
-        if(tel.length >= 8) {
-            const snapCli = await get(ref(db, 'clientes/' + tel));
-            if(snapCli.exists()) {
-                document.getElementById('nome').value = snapCli.val().nome;
-                document.getElementById('telefone').value = tel;
-            }
-        }
-    };
+function emailUsuarioAtual(){
+ const u = auth ? auth.currentUser : null;
+ return u && u.email ? u.email : "";
+}
 
-    window.processarAtendimento = async function(acao) {
-        let nome = document.getElementById('nome').value;
-        let tel = document.getElementById('telefone').value.replace(/\D/g,'');
-        let dataInput = document.getElementById('dataEntrega').value;
-        if(!nome || !tel || !dataInput) return alert("Preencha todos os campos!");
+function limparTexto(txt){
+ let s = String(txt || "");
 
-        let itens = [];
-        let totalItensOS = 0;
-        ['alicates','facas','tesouras','molas','outros'].forEach(id => {
-            let q = parseInt(document.getElementById(id).value) || 0;
-            if(q > 0) {
-                itens.push(`${q} ${id.toUpperCase()}`);
-                totalItensOS += q;
-            }
-        });
-        if(itens.length === 0) return alert("Indique pelo menos 1 item!");
+ try{
+   if(/[\u00C3\u00C2\u00E2]/.test(s)){
+     s = decodeURIComponent(escape(s));
+   }
+ }catch(e){}
 
-        let numeroOS = Math.floor(1000 + Math.random() * 9000);
-        let dataFormatada = new Date(dataInput).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-        let textoItens = itens.join(', ');
+ try{
+   s = s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ }catch(e){}
 
-        // Salvar dados na nuvem (Firebase)
-        const snapCli = await get(ref(db, 'clientes/' + tel));
-        let totalAtual = snapCli.exists() ? (snapCli.val().totalServicos || 0) : 0;
+ s = s
+   .replaceAll("\u2022","-")
+   .replaceAll("\u00B7","-")
+   .replaceAll("\u2013","-")
+   .replaceAll("\u2014","-")
+   .replaceAll("\u201C",'"')
+   .replaceAll("\u201D",'"')
+   .replaceAll("\u2019","'")
+   .replaceAll("`","'");
 
-        await set(ref(db, 'clientes/' + tel), { nome: nome, totalServicos: totalAtual + totalItensOS });
-        await set(ref(db, 'ordens/' + numeroOS), { os: numeroOS, tel: tel, nome: nome, data: new Date().toISOString(), itens: textoItens, entrega: dataFormatada });
+ s = s.replace(/[^\x09\x0A\x0D\x20-\x7E]/g,"");
 
-        atualizarDashboard();
+ return s;
+}
 
-        if(acao === 'whatsapp') {
-            let msg = msgTemplate.replace('{os}', numeroOS).replace('{nome}', nome).replace('{itens}', textoItens).replace('{entrega}', dataFormatada);
-            window.location.href = `https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`;
-        } else if(acao === 'imprimir') {
-            let cupom = `========================\n          AFIA          \n========================\nOS NUMERO: ${numeroOS}\nCLIENTE: ${nome}\nTEL: ${tel}\n------------------------\nITENS RECEBIDOS:\n${textoItens.replace(/,/g, '\n')}\n------------------------\nRETIRADA: ${dataFormatada}\n========================\n\n\n`;
-            let pBox = document.getElementById('printReceipt');
-            pBox.innerText = cupom;
-            pBox.style.display = 'block';
-            window.print();
-            pBox.style.display = 'none';
-        }
-    };
+function limparTelefone(t){
+ return String(t || "").replace(/\D/g,"");
+}
 
-    window.puxarDadosCliente = async function() {
-        let tel = document.getElementById('buscaHistorial').value.trim();
-        let box = document.getElementById('resultadoHistorial');
-        if(!tel) return;
+function normalizarServicos(servicos){
+ const lista = Array.isArray(servicos) && servicos.length ? servicos : defaultServices;
+ return lista.map(s => ({
+   nome: limparTexto(s.nome || "Servico"),
+   preco: Number(s.preco || 0)
+ }));
+}
 
-        const snapCli = await get(ref(db, 'clientes/' + tel));
-        if(!snapCli.exists()) { box.innerHTML = "<p style='color:#64748B;margin-top:10px;'>Nenhum histórico.</p>"; return; }
-        
-        const snapOrdens = await get(ref(db, 'ordens'));
-        let html = `<div class="history-card"><b>Cliente:</b> ${snapCli.val().nome}<br><b>Total de peças afiadas na história:</b> ${snapCli.val().totalServicos || 0}<h4 style='margin: 10px 0 5px 0;'>Histórico de Ordens:</h4>`;
-        
-        if(snapOrdens.exists()) {
-            let lista = Object.values(snapOrdens.val()).filter(o => o.tel === tel);
-            lista.reverse().forEach(o => {
-                html += `• OS ${o.os} (${o.entrega}): ${o.itens}<br>`;
-            });
-        }
-        html += `</div>`;
-        box.innerHTML = html;
-    };
+function normalizarTemplateWhatsApp(t){
+ return limparTexto(String(t || defaultTemplate)
+   .replace(/\\n/g,"\n")
+   .replace(/\n{3,}/g,"\n\n"));
+}
 
-    async function carregarRanking() {
-        const snapCli = await get(ref(db, 'clientes'));
-        if(!snapCli.exists()) {
-            document.getElementById('rankingClientes').innerHTML = "Nenhum cliente registrado ainda.";
-            return;
-        }
-        let clientes = Object.values(snapCli.val());
-        clientes.sort((a,b) => (b.totalServicos || 0) - (a.totalServicos || 0));
-        
-        let html = "<ol class='ranking-list'>";
-        clientes.slice(0, 5).forEach(c => { html += `<li><b>${c.nome}</b> - ${c.totalServicos || 0} ferramentas</li>`; });
-        html += "</ol>";
-        document.getElementById('rankingClientes').innerHTML = html;
-    }
+async function iniciar(){
+ document.getElementById("agendaData").value = hoje();
+ document.getElementById("dataEntrega").value = hoje();
 
-    // Iniciar app
-    init();
+ horarios.forEach(h=>{
+   const o = document.createElement("option");
+   o.value = h;
+   o.textContent = h;
+   horaEntrega.appendChild(o);
+ });
+
+ try{
+   firebase.initializeApp(firebaseConfig);
+   db = firebase.firestore();
+   auth = firebase.auth();
+
+   cloudStatus.innerHTML = '<span class="ok">Firebase conectado - aguardando login seguro</span>';
+   ajusteStatus.innerHTML = '<span class="ok">Conectado</span>';
+
+   auth.onAuthStateChanged(async user=>{
+     if(user){
+       try{
+         await carregarConfig();
+         abrirApp();
+         iniciarEscutaOrdens();
+       }catch(e){
+         cloudStatus.innerHTML = '<span class="bad">Erro ao carregar dados: '+limparTexto(e.message)+'</span>';
+       }
+     }else{
+       fecharApp();
+     }
+   });
+
+ }catch(e){
+   cloudStatus.innerHTML = '<span class="bad">Erro: '+limparTexto(e.message)+'</span>';
+   ajusteStatus.textContent = limparTexto(e.message);
+ }
+}
+
+function iniciarEscutaOrdens(){
+ if(unsubscribeOrdens){
+   unsubscribeOrdens();
+   unsubscribeOrdens = null;
+ }
+
+ unsubscribeOrdens = db.collection(COL_ORDENS).orderBy("criadoEm","desc").onSnapshot(s=>{
+   ordens = [];
+   s.forEach(d=>ordens.push({id:d.id, ...d.data()}));
+   renderAgenda();
+   renderClientes();
+ },e=>{
+   cloudStatus.innerHTML = '<span class="bad">Erro ao ler agenda: '+limparTexto(e.message)+'</span>';
+ });
+}
+
+async function carregarConfig(){
+ const snap = await db.doc(DOC_CONFIG).get();
+
+ if(snap.exists){
+   config = snap.data();
+ }else{
+   config = {servicos:defaultServices, template:defaultTemplate};
+ }
+
+ if(!config.servicos) config.servicos = defaultServices;
+ if(!config.template) config.template = defaultTemplate;
+
+ config.servicos = normalizarServicos(config.servicos);
+ config.template = normalizarTemplateWhatsApp(config.template);
+ await db.doc(DOC_CONFIG).set(config,{merge:true});
+
+ templateMsg.value = config.template;
+
+ renderServicosOS();
+ renderServicosEdit();
+}
+
+async function login(){
+ const email = loginUser.value.trim();
+ const senha = loginPass.value;
+
+ if(!email || !senha){
+   alert("Digite o e-mail e a senha do Firebase.");
+   return;
+ }
+
+ try{
+   cloudStatus.innerHTML = '<span class="ok">Entrando...</span>';
+   await auth.signInWithEmailAndPassword(email, senha);
+   loginPass.value = "";
+ }catch(e){
+   cloudStatus.innerHTML = '<span class="bad">Falha no login</span>';
+   alert("Login incorreto ou usuario nao cadastrado no Firebase.");
+ }
+}
+
+function abrirApp(){
+ loginScreen.classList.add("hidden");
+ appScreen.classList.remove("hidden");
+ cloudStatus.innerHTML = '<span class="ok">Login seguro ativo: '+limparTexto(emailUsuarioAtual())+'</span>';
+ if(document.getElementById("emailLogado")){
+   emailLogado.textContent = limparTexto(emailUsuarioAtual());
+ }
+}
+
+function fecharApp(){
+ if(unsubscribeOrdens){
+   unsubscribeOrdens();
+   unsubscribeOrdens = null;
+ }
+
+ ordens = [];
+ loginScreen.classList.remove("hidden");
+ appScreen.classList.add("hidden");
+ cloudStatus.innerHTML = '<span class="ok">Firebase conectado - faca login</span>';
+}
+
+async function logout(){
+ try{
+   await auth.signOut();
+ }catch(e){
+   alert("Erro ao sair: "+limparTexto(e.message));
+ }
+}
+
+function showTab(t){
+ ["agenda","nova","clientes","ajustes"].forEach(id=>document.getElementById(id).classList.add("hidden"));
+ ["btnAgenda","btnNova","btnClientes","btnAjustes"].forEach(id=>document.getElementById(id).classList.remove("active"));
+
+ document.getElementById(t).classList.remove("hidden");
+
+ if(t === "agenda") btnAgenda.classList.add("active");
+ if(t === "nova") btnNova.classList.add("active");
+ if(t === "clientes") btnClientes.classList.add("active");
+ if(t === "ajustes") btnAjustes.classList.add("active");
+}
+
+function renderServicosOS(){
+ servicosOS.innerHTML = "";
+
+ config.servicos.forEach((s,i)=>{
+   servicosOS.innerHTML += `
+    <div class="qty-row">
+     <div class="qty-name">${limparTexto(s.nome)}<span>${moeda(s.preco)} cada</span></div>
+     <input type="number" min="0" value="0" id="svc_${i}" oninput="calcularTotal()">
+    </div>`;
+ });
+}
+
+function calcularTotal(){
+ let total = 0;
+
+ config.servicos.forEach((s,i)=>{
+   const q = Number(document.getElementById("svc_"+i)?.value) || 0;
+   total += q * Number(s.preco || 0);
+ });
+
+ valorTotal.value = total.toFixed(2);
+}
+
+function buscarClientePorTelefone(){
+ const telDigitado = limparTelefone(telefone.value);
+
+ if(telDigitado.length < 4) return;
+
+ const cliente = ordens.find(o=>{
+   const telSalvo = limparTelefone(o.telefone);
+   return telSalvo && (
+     telSalvo === telDigitado ||
+     telSalvo.endsWith(telDigitado) ||
+     telDigitado.endsWith(telSalvo)
+   );
+ });
+
+ if(cliente && cliente.nome){
+   nome.value = limparTexto(cliente.nome);
+ }
+}
+
+function calcularTotalServicos(itens){
+ let total = 0;
+
+ Object.entries(itens || {}).forEach(([nome,qtd])=>{
+   total += Number(qtd || 0);
+ });
+
+ return total;
+}
+
+function getPecasAgenda(os){
+ const somaItens = calcularTotalServicos(os.itens || {});
+ if(somaItens > 0) return somaItens;
+ return Number(os.pecas || os.pecasAgenda || 0);
+}
+
+function mapaVazio(){
+ const m = {};
+ horarios.forEach(h=>m[h] = 0);
+ return m;
+}
+
+function somarAlocacao(aloc){
+ return Object.values(aloc || {}).reduce((s,q)=>s + Number(q || 0), 0);
+}
+
+function ordemPrioridade(horaBase){
+ const idx = horarios.indexOf(horaBase);
+
+ if(idx < 0) return [];
+
+ const ordem = [];
+
+ ordem.push(idx);
+
+ for(let i = idx - 1; i >= 0; i--){
+   ordem.push(i);
+ }
+
+ for(let i = idx + 1; i < horarios.length; i++){
+   ordem.push(i);
+ }
+
+ return ordem;
+}
+
+function calcularAlocacaoNoMapa(mapaOcupado, horaBase, quantidade){
+ const aloc = {};
+ let restante = Number(quantidade || 0);
+
+ if(restante <= 0) return aloc;
+
+ const ordem = ordemPrioridade(horaBase);
+
+ if(!ordem.length){
+   throw new Error("Horario invalido.");
+ }
+
+ for(const i of ordem){
+   const h = horarios[i];
+   const usado = Number(mapaOcupado[h] || 0);
+   const livre = Math.max(0, 5 - usado);
+
+   if(livre > 0){
+     const pega = Math.min(livre, restante);
+
+     aloc[h] = (aloc[h] || 0) + pega;
+     mapaOcupado[h] = usado + pega;
+
+     restante -= pega;
+
+     if(restante <= 0) break;
+   }
+ }
+
+ if(restante > 0){
+   throw new Error("Nao ha vagas suficientes nesse dia para essa quantidade de servicos.");
+ }
+
+ return aloc;
+}
+
+function ordenarOrdensDoDia(lista){
+ return [...lista].sort((a,b)=>{
+   const ha = String(a.hora || "");
+   const hb = String(b.hora || "");
+
+   if(ha !== hb) return ha.localeCompare(hb);
+
+   const ta = a.criadoEm && a.criadoEm.seconds ? a.criadoEm.seconds : 0;
+   const tb = b.criadoEm && b.criadoEm.seconds ? b.criadoEm.seconds : 0;
+
+   return ta - tb;
+ });
+}
+
+function calcularDistribuicoesDoDia(dia, ignorarId){
+ const confirmado = mapaVazio();
+ const agendado = mapaVazio();
+ const ocupadoTotal = mapaVazio();
+ const distPorId = {};
+ const semVaga = [];
+
+ const lista = ordenarOrdensDoDia(dia).filter(o => !ignorarId || o.id !== ignorarId);
+
+ lista.forEach((o,idx)=>{
+   const chave = o.id || ("semid_"+idx);
+   const qtd = getPecasAgenda(o);
+   const situacao = o.situacao === "agendado" ? "agendado" : "confirmado";
+   const mapaCor = situacao === "agendado" ? agendado : confirmado;
+
+   let aloc = {};
+
+   if(qtd > 0){
+     try{
+       aloc = calcularAlocacaoNoMapa(ocupadoTotal, o.hora, qtd);
+     }catch(e){
+       semVaga.push(o);
+       aloc = {};
+     }
+   }
+
+   Object.entries(aloc).forEach(([h,q])=>{
+     if(mapaCor[h] !== undefined){
+       mapaCor[h] += Number(q || 0);
+     }
+   });
+
+   distPorId[chave] = aloc;
+ });
+
+ return {confirmado, agendado, ocupadoTotal, distPorId, semVaga};
+}
+
+function ocupacaoTotalDoDia(data, ignorarId){
+ const dia = ordens.filter(o=>o.data === data);
+ return calcularDistribuicoesDoDia(dia, ignorarId).ocupadoTotal;
+}
+
+function calcularAlocacoes(data, horaBase, quantidade, ignorarId){
+ const mapa = {...ocupacaoTotalDoDia(data, ignorarId)};
+ return calcularAlocacaoNoMapa(mapa, horaBase, quantidade);
+}
+
+async function salvarOS(e){
+ e.preventDefault();
+
+ let itens = {};
+ let totalServicos = 0;
+
+ config.servicos.forEach((s,i)=>{
+   const campo = document.getElementById("svc_"+i);
+   const q = Number(campo ? campo.value : 0) || 0;
+
+   if(q > 0){
+     const nomeServico = limparTexto(s.nome);
+     itens[nomeServico] = q;
+     totalServicos += q;
+   }
+ });
+
+ if(totalServicos <= 0){
+   alert("Marque pelo menos 1 servico.");
+   return;
+ }
+
+ const data = dataEntrega.value;
+ const hora = horaEntrega.value;
+ const situacaoOS = situacao.value || "confirmado";
+
+ let alocacoes = {};
+
+ try{
+   alocacoes = calcularAlocacoes(data, hora, totalServicos);
+ }catch(err){
+   alert(limparTexto(err.message));
+   return;
+ }
+
+ const os = {
+   nome: limparTexto(nome.value.trim()),
+   telefone: limparTexto(telefone.value.trim()),
+   data: data,
+   hora: hora,
+   itens: itens,
+   pecas: totalServicos,
+   pecasAgenda: totalServicos,
+   alocacoes: alocacoes,
+   situacao: situacaoOS,
+   observacao: limparTexto(observacao.value.trim()),
+   status: limparTexto(status.value || "Recebido"),
+   pagamento: limparTexto(pagamento.value || "Pagar na retirada"),
+   valor: Number(String(valorTotal.value || 0).replace(",", ".")),
+   criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+ };
+
+ try{
+   const ref = await db.collection(COL_ORDENS).add(os);
+   os.id = ref.id;
+   ultimaOSSalva = os;
+
+   mostrarAcoesDepoisDeSalvar(os);
+
+   e.target.reset();
+   dataEntrega.value = hoje();
+   renderServicosOS();
+
+ }catch(err){
+   alert("Erro ao salvar: " + limparTexto(err.message));
+ }
+}
+
+function mostrarAcoesDepoisDeSalvar(os){
+ const form = document.querySelector("#nova form");
+ const panel = document.getElementById("posSalvarPanel");
+ const resumo = document.getElementById("posSalvarResumo");
+
+ if(form) form.classList.add("hidden");
+
+ if(resumo){
+   const dist = Object.entries(os.alocacoes || {}).map(([h,q])=>h+": "+q).join(" | ");
+   resumo.innerHTML = `
+    <b>${limparTexto(os.nome)}</b><br>
+    Entrega: ${dataBR(os.data)} as ${os.hora}<br>
+    Servicos: ${Number(os.pecas || 0)}<br>
+    Distribuicao: ${dist}<br>
+    Total: ${moeda(os.valor)}
+   `;
+ }
+
+ if(panel) panel.classList.remove("hidden");
+}
+
+function enviarUltimaOS(){
+ if(ultimaOSSalva) enviarWhatsApp(ultimaOSSalva);
+}
+
+function imprimirUltimaOS(){
+ if(ultimaOSSalva){
+   abrirViaImpressao(ultimaOSSalva);
+ }
+}
+
+function novaOSDepoisDeSalvar(){
+ const form = document.querySelector("#nova form");
+ const panel = document.getElementById("posSalvarPanel");
+
+ if(panel) panel.classList.add("hidden");
+ if(form) form.classList.remove("hidden");
+}
+
+function itensTexto(os, sep){
+ sep = sep === undefined ? "\n" : sep;
+
+ return Object.entries(os.itens || {})
+   .map(([n,q])=>limparTexto(n)+": "+Number(q || 0))
+   .join(sep);
+}
+
+function enviarWhatsApp(os){
+ let tel = limparTelefone(os.telefone);
+
+ if(!tel.startsWith("55")){
+   tel = "55" + tel;
+ }
+
+ let msg = normalizarTemplateWhatsApp(config.template || defaultTemplate)
+   .replaceAll("{nome}", limparTexto(os.nome))
+   .replaceAll("{data}", dataBR(os.data))
+   .replaceAll("{hora}", os.hora)
+   .replaceAll("{itens}", itensTexto(os,"\n"))
+   .replaceAll("{valor}", moeda(os.valor))
+   .replaceAll("{pagamento}", limparTexto(os.pagamento));
+
+ window.open("https://wa.me/"+tel+"?text="+encodeURIComponent(msg), "_blank");
+}
+
+function escaparHtml(txt){
+ return String(txt || "")
+   .replaceAll("&","&amp;")
+   .replaceAll("<","&lt;")
+   .replaceAll(">","&gt;")
+   .replaceAll('"',"&quot;")
+   .replaceAll("'","&#039;");
+}
+
+function htmlViaLoja(os){
+ const linhasItens = Object.entries(os.itens || {})
+   .map(([n,q])=>`<div class="linha">${escaparHtml(limparTexto(n))}: <b>${Number(q || 0)}</b></div>`)
+   .join("");
+
+ const dist = Object.entries(os.alocacoes || {})
+   .map(([h,q])=>`${h}: ${q}`)
+   .join(" | ");
+
+ return `
+  <div class="recibo">
+   <div class="centro titulo">AFIA</div>
+   <div class="centro subtitulo">VIA DA LOJA</div>
+   <hr>
+   <div class="linha">OS: ${escaparHtml(os.id || "")}</div>
+   <div class="linha">Cliente: ${escaparHtml(limparTexto(os.nome))}</div>
+   <div class="linha">Telefone: ${escaparHtml(limparTexto(os.telefone))}</div>
+   <div class="linha">Entrega: ${escaparHtml(dataBR(os.data))} ${escaparHtml(os.hora || "")}</div>
+   <hr>
+   <div class="linha"><b>Servicos</b></div>
+   ${linhasItens}
+   <hr>
+   <div class="linha">Total de servicos: <b>${Number(os.pecas || getPecasAgenda(os) || 0)}</b></div>
+   <div class="linha">Distribuicao: ${escaparHtml(dist || "-")}</div>
+   <div class="linha">Valor: <b>${escaparHtml(moeda(os.valor))}</b></div>
+   <div class="linha">Pagamento: ${escaparHtml(limparTexto(os.pagamento))}</div>
+   ${os.observacao ? `<div class="linha">Obs: ${escaparHtml(limparTexto(os.observacao))}</div>` : ""}
+  </div>
+ `;
+}
+
+function abrirViaImpressao(os){
+ const conteudo = htmlViaLoja(os);
+ const w = window.open("", "_blank");
+
+ if(!w){
+   alert("O navegador bloqueou a abertura da via. Toque em permitir pop-up ou tente novamente.");
+   return;
+ }
+
+ w.document.open();
+ w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFIA - Via da loja</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f2f2f7;color:#111}
+.box{max-width:420px;margin:0 auto}
+.btn{width:100%;border:0;border-radius:12px;padding:14px;margin:8px 0;font-size:16px;font-weight:900;color:#fff;background:#007aff}
+.btn-gray{background:#777}
+.recibo{background:#fff;border-radius:12px;padding:16px;font-family:monospace;font-size:14px}
+.centro{text-align:center}
+.titulo{font-size:24px;font-weight:900;letter-spacing:3px}
+.subtitulo{font-size:14px;font-weight:900}
+.linha{margin:7px 0;line-height:1.35}
+hr{border:0;border-top:1px dashed #999;margin:10px 0}
+.aviso{font-size:13px;color:#555;margin:8px 0 12px;line-height:1.35}
+@media print{
+ body{background:#fff;padding:0}
+ .no-print{display:none!important}
+ .box{max-width:none;margin:0}
+ .recibo{border-radius:0;padding:0;width:58mm;font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="box">
+ <div class="no-print">
+  <button class="btn" onclick="window.print()">Imprimir ou salvar PDF</button>
+  <button class="btn btn-gray" onclick="window.close()">Fechar</button>
+  <p class="aviso">A via ja abriu. Agora toque no botao azul para imprimir ou salvar em PDF.</p>
+ </div>
+ ${conteudo}
+</div>
+</body>
+</html>`);
+ w.document.close();
+}
+
+function prepararImpressao(os){
+ printArea.innerHTML = `
+  <div style="text-align:center;font-weight:bold">AFIA - VIA DA LOJA</div>
+  <div class="print-line">OS: ${os.id || ""}</div>
+  <div class="print-line">Cliente: ${limparTexto(os.nome)}</div>
+  <div class="print-line">Tel: ${limparTexto(os.telefone)}</div>
+  <div class="print-line">Entrega: ${dataBR(os.data)} ${os.hora}</div>
+  <div class="print-line">--------------------------</div>
+  <div class="print-line">${itensTexto(os,"<br>")}</div>
+  <div class="print-line">--------------------------</div>
+  <div class="print-line">Total: ${moeda(os.valor)}</div>
+  <div class="print-line">${limparTexto(os.pagamento)}</div>
+  <div class="print-line">${limparTexto(os.observacao || "")}</div>
+ `;
+}
+
+function renderAgenda(){
+ const data = agendaData.value;
+ const dia = ordenarOrdensDoDia(ordens.filter(o=>o.data === data));
+ const calcDia = calcularDistribuicoesDoDia(dia);
+
+ statPedidos.textContent = dia.length;
+ statPecas.textContent = dia.reduce((s,o)=>s + getPecasAgenda(o), 0);
+ statValor.textContent = moeda(dia.reduce((s,o)=>s + Number(o.valor || 0), 0));
+
+ renderGrid(calcDia);
+
+ agendaLista.innerHTML = dia.length ? "" : '<div class="card small">Nenhuma OS para esta data.</div>';
+
+ if(calcDia.semVaga.length){
+   const alerta = document.createElement("div");
+   alerta.className = "card";
+   alerta.innerHTML = '<p class="bad"><b>Atencao:</b> existe OS sem vaga suficiente neste dia.</p>';
+   agendaLista.appendChild(alerta);
+ }
+
+ dia.forEach((os,idx)=>{
+   const chave = os.id || ("semid_"+idx);
+   const d = document.createElement("div");
+   d.className = "card os-card";
+
+   const sitTxt = os.situacao === "agendado" ? "Agendado / ainda vai trazer" : "Servico no balcao";
+   const btnChegada = os.situacao === "agendado"
+     ? `<button class="btn" onclick="confirmarChegada('${os.id}')">Confirmar chegada e deixar vermelho</button>`
+     : "";
+
+   const distObj = calcDia.distPorId[chave] || {};
+   const dist = Object.keys(distObj).length
+     ? Object.entries(distObj).map(([h,q])=>h+": "+q).join(" | ")
+     : "Sem distribuicao";
+
+   d.innerHTML = `
+    <p><b>${os.hora} - ${limparTexto(os.nome)}</b></p>
+    <p>${limparTexto(os.telefone)}</p>
+    <p>${itensTexto(os," | ")}</p>
+    <p>${moeda(os.valor)} | ${limparTexto(os.pagamento)}</p>
+    <p>Agenda: <b>${getPecasAgenda(os)}</b> vaga(s) | Total da OS: <b>${Number(os.pecas || getPecasAgenda(os) || 0)}</b></p>
+    <p class="small">Distribuicao: ${dist}</p>
+    <p>Situacao: <b>${sitTxt}</b></p>
+    <p>Status: <b>${limparTexto(os.status)}</b></p>
+    ${os.observacao ? `<p>${limparTexto(os.observacao)}</p>` : ""}
+    ${btnChegada}
+    <button class="btn btn-blue" onclick="reenviar('${os.id}')">Enviar WhatsApp</button>
+    <button class="btn btn-blue" onclick="imprimir('${os.id}')">Abrir via loja</button>
+    <button class="btn btn-red" onclick="apagarOS('${os.id}')">Apagar</button>
+   `;
+
+   agendaLista.appendChild(d);
+ });
+}
+
+function renderGrid(calcDia){
+ const confirmado = calcDia.confirmado;
+ const agendado = calcDia.agendado;
+
+ let totalConfirmado = 0;
+ let totalAgendado = 0;
+
+ let html = '<table class="agenda-table"><tr><th>Horario</th><th>Vagas ocupadas</th></tr>';
+
+ horarios.forEach(h=>{
+   if(h === "14:30"){
+     html += '<tr class="interval"><td colspan="2">ALMOCO / INTERVALO (13:30 as 14:30)</td></tr>';
+   }
+
+   const red = Math.min(confirmado[h] || 0, 5);
+   const orange = Math.min(agendado[h] || 0, Math.max(0, 5 - red));
+
+   totalConfirmado += confirmado[h] || 0;
+   totalAgendado += agendado[h] || 0;
+
+   html += `<tr><td class="time">${h}</td><td><div class="slots">`;
+
+   for(let i=0;i<5;i++){
+     let cls = "";
+
+     if(i < red){
+       cls = "on";
+     }else if(i < red + orange){
+       cls = "pending";
+     }
+
+     html += `<div class="slot ${cls}"></div>`;
+   }
+
+   html += '</div></td></tr>';
+ });
+
+ html += `<tr><td><b>TOTAL</b></td><td><b>${totalConfirmado} vermelhas - ${totalAgendado} laranjas</b></td></tr></table>`;
+
+ agendaGrid.innerHTML = html;
+}
+
+function renderClientes(){
+ const q = limparTexto(buscaCliente.value).toLowerCase().trim();
+ const mapa = {};
+
+ ordens.forEach(os=>{
+   const tel = limparTelefone(os.telefone);
+   const chave = tel || limparTexto(os.nome).toLowerCase();
+
+   if(!mapa[chave]){
+     mapa[chave] = {
+       nome: limparTexto(os.nome),
+       telefone: limparTexto(os.telefone),
+       visitas: 0,
+       pecas: 0,
+       valor: 0,
+       ordens: []
+     };
+   }
+
+   mapa[chave].visitas += 1;
+   mapa[chave].pecas += getPecasAgenda(os);
+   mapa[chave].valor += Number(os.valor || 0);
+   mapa[chave].ordens.push(os);
+
+   if(os.nome) mapa[chave].nome = limparTexto(os.nome);
+   if(os.telefone) mapa[chave].telefone = limparTexto(os.telefone);
+ });
+
+ const clientes = Object.values(mapa).filter(c =>
+   !q ||
+   c.nome.toLowerCase().includes(q) ||
+   c.telefone.includes(q) ||
+   limparTelefone(c.telefone).includes(limparTelefone(q))
+ );
+
+ clientes.sort((a,b)=>a.nome.localeCompare(b.nome));
+
+ clientesLista.innerHTML = "";
+
+ if(clientes.length === 0){
+   clientesLista.innerHTML = '<div class="card small">Nenhum cliente encontrado.</div>';
+   return;
+ }
+
+ clientes.forEach(c=>{
+   c.ordens.sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+
+   const ultima = c.ordens[0];
+
+   const historico = c.ordens.map(os=>{
+     return `<p class="small">${dataBR(os.data)} as ${os.hora} - ${getPecasAgenda(os)} servicos - ${moeda(os.valor)} - ${limparTexto(os.status)}</p>`;
+   }).join("");
+
+   const d = document.createElement("div");
+   d.className = "card";
+
+   d.innerHTML = `
+    <p><b>${c.nome}</b></p>
+    <p>${c.telefone}</p>
+    <p>Veio na loja: <b>${c.visitas}</b> vez(es)</p>
+    <p>Total de servicos: <b>${c.pecas}</b></p>
+    <p>Total gasto: <b>${moeda(c.valor)}</b></p>
+    <p>Ultima visita: <b>${ultima ? dataBR(ultima.data) : "-"}</b></p>
+    <hr>
+    <p><b>Historico:</b></p>
+    ${historico}
+   `;
+
+   clientesLista.appendChild(d);
+ });
+}
+
+function reenviar(id){
+ const os = ordens.find(o=>o.id === id);
+ if(os) enviarWhatsApp(os);
+}
+
+function imprimir(id){
+ const os = ordens.find(o=>o.id === id);
+ if(os){
+   abrirViaImpressao(os);
+ }
+}
+
+async function confirmarChegada(id){
+ const os = ordens.find(o=>o.id === id);
+
+ if(!os) return;
+
+ const qtd = getPecasAgenda(os);
+ let alocacoes = {};
+
+ try{
+   alocacoes = calcularAlocacoes(os.data, os.hora, qtd, id);
+ }catch(err){
+   alert(limparTexto(err.message));
+   return;
+ }
+
+ await db.collection(COL_ORDENS).doc(id).update({
+   situacao:"confirmado",
+   status:"Recebido",
+   pecas:qtd,
+   pecasAgenda:qtd,
+   alocacoes:alocacoes
+ });
+}
+
+async function apagarOS(id){
+ if(confirm("Apagar esta OS?")){
+   await db.collection(COL_ORDENS).doc(id).delete();
+ }
+}
+
+function renderServicosEdit(){
+ servicosEdit.innerHTML = "";
+
+ config.servicos.forEach((s,i)=>{
+   servicosEdit.innerHTML += `
+    <div class="service-edit">
+     <b>${limparTexto(s.nome)}</b>
+     <span>${moeda(s.preco)}</span>
+     <button class="btn btn-red" onclick="removerServico(${i})">Excluir</button>
+    </div>`;
+ });
+}
+
+async function salvarConfig(){
+ config.servicos = normalizarServicos(config.servicos);
+ config.template = normalizarTemplateWhatsApp(config.template);
+ await db.doc(DOC_CONFIG).set(config,{merge:true});
+
+ renderServicosOS();
+ renderServicosEdit();
+}
+
+async function adicionarServico(){
+ if(!novoServico.value || !novoPreco.value) return;
+
+ config.servicos.push({
+   nome: limparTexto(novoServico.value.trim()),
+   preco: Number(novoPreco.value)
+ });
+
+ novoServico.value = "";
+ novoPreco.value = "";
+
+ await salvarConfig();
+}
+
+async function removerServico(i){
+ if(confirm("Excluir este servico da OS?")){
+   config.servicos.splice(i,1);
+   await salvarConfig();
+ }
+}
+
+async function salvarTemplate(){
+ config.template = normalizarTemplateWhatsApp(templateMsg.value);
+ templateMsg.value = config.template;
+ await salvarConfig();
+ alert("Mensagem salva.");
+}
+
+async function salvarLoginConfig(){
+ alert("O login agora e controlado pelo Firebase Authentication.");
+}
+
+iniciar();
 </script>
 </body>
 </html>
