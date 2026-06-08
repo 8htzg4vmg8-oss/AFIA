@@ -52,6 +52,16 @@ textarea{min-height:80px}
 .service-edit{display:flex;gap:6px;align-items:center;border-bottom:1px solid #eee;padding:8px 0}
 .service-edit b{flex:1}
 .service-edit button{width:auto;margin:0;padding:8px 10px;border-radius:8px}
+
+.finance-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.finance-box{background:#f8f8fa;border-radius:12px;padding:10px;text-align:center}
+.finance-box span{display:block;font-size:11px;color:#777;font-weight:800}
+.finance-box b{display:block;font-size:18px;color:#111;margin-top:3px}
+.finance-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.finance-table th,.finance-table td{border-bottom:1px solid #eee;padding:7px 4px;text-align:left}
+.finance-table th{color:#777;font-size:11px}
+.finance-table td:last-child,.finance-table th:last-child{text-align:right}
+
 #printArea{display:none}
 @media print{
  body>*:not(#printArea){display:none!important}
@@ -68,7 +78,7 @@ textarea{min-height:80px}
  <div class="header">
   <h1>AFIA</h1>
   <p>ORDEM DE SERVICO - AGENDA - CLIENTES</p>
-  <p class="version">VERSAO 7.0 - LOGIN FIREBASE</p>
+  <p class="version">VERSAO 9.0 - NUMERACAO MENSAL DA OS</p>
  </div>
 
  <section id="loginScreen" class="card">
@@ -85,6 +95,7 @@ textarea{min-height:80px}
   <div class="tabs">
    <button id="btnAgenda" class="active" onclick="showTab('agenda')">Agenda</button>
    <button id="btnNova" onclick="showTab('nova')">Nova OS</button>
+   <button id="btnFinanceiro" onclick="showTab('financeiro')">Financeiro</button>
    <button id="btnClientes" onclick="showTab('clientes')">Clientes</button>
    <button id="btnAjustes" onclick="showTab('ajustes')">Ajustes</button>
   </div>
@@ -99,6 +110,7 @@ textarea{min-height:80px}
    <div class="card">
     <h3 class="title">Agenda</h3>
     <label>Data</label><input type="date" id="agendaData" onchange="renderAgenda()">
+    <label>Pesquisar OS</label><input id="buscaAgenda" oninput="renderAgenda()" placeholder="Numero da OS, nome ou telefone">
     <div id="agendaGrid" style="margin-top:12px"></div>
    </div>
    <h3 style="font-size:15px;margin:14px 0 8px">Ordens do dia</h3>
@@ -164,6 +176,63 @@ textarea{min-height:80px}
    </div>
   </section>
 
+
+  <section id="financeiro" class="hidden">
+   <div class="card">
+    <h3 class="title">Gestao financeira</h3>
+
+    <label>Mes</label>
+    <input type="month" id="finMes" onchange="renderFinanceiro()">
+
+    <div id="financeiroResumo"></div>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Fechamento do dia</h3>
+    <div id="financeiroHoje"></div>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Fechamento por dia no mes</h3>
+    <div id="financeiroDias"></div>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Despesas</h3>
+
+    <div class="row">
+     <div><label>Data</label><input type="date" id="dataDespesa"></div>
+     <div>
+      <label>Categoria</label>
+      <select id="categoriaDespesa">
+       <option>Material</option>
+       <option>Aluguel</option>
+       <option>Conta</option>
+       <option>Marketing</option>
+       <option>Equipamento</option>
+       <option>Outros</option>
+      </select>
+     </div>
+    </div>
+
+    <label>Descricao</label>
+    <input id="descDespesa" placeholder="Ex: compra de molas, embalagem, gasolina">
+
+    <label>Valor</label>
+    <input id="valorDespesa" type="number" step="0.01" placeholder="Ex: 50">
+
+    <button class="btn btn-blue" onclick="salvarDespesa()">Adicionar despesa</button>
+
+    <div id="despesasLista" style="margin-top:12px"></div>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Relatorio</h3>
+    <p class="small">Gera um resumo do mes para voce copiar, salvar ou enviar para seu contador.</p>
+    <button class="btn btn-blue" onclick="copiarRelatorioFinanceiro()">Copiar resumo do mes</button>
+   </div>
+  </section>
+
   <section id="clientes" class="hidden">
    <div class="card">
     <h3 class="title">Clientes</h3>
@@ -189,9 +258,24 @@ textarea{min-height:80px}
 
    <div class="card">
     <h3 class="title">Mensagem do WhatsApp</h3>
-    <p class="small">Use: {nome}, {data}, {hora}, {itens}, {valor}, {pagamento}</p>
+    <p class="small">Use: {numero}, {nome}, {data}, {hora}, {itens}, {valor}, {pagamento}</p>
     <textarea id="templateMsg"></textarea>
     <button class="btn btn-blue" onclick="salvarTemplate()">Salvar mensagem</button>
+   </div>
+
+   <div class="card">
+    <h3 class="title">Numeracao da OS</h3>
+    <p class="small">A OS comeca no numero <b>1</b> e continua subindo. Ela <b>nao zera automaticamente</b>.</p>
+    <p class="small">No fechamento do mes, voce pode zerar manualmente para a proxima OS voltar para <b>1</b>.</p>
+    <p class="small">Proxima OS: <b id="proximoNumeroOS">-</b></p>
+
+    <label>Definir proxima OS</label>
+    <input id="setProximoNumero" type="number" min="1" placeholder="Ex: 1">
+
+    <button class="btn btn-blue" onclick="salvarProximoNumeroOS()">Salvar proximo numero</button>
+    <button class="btn btn-red" onclick="zerarNumeracaoOS()">Zerar OS e voltar para 1</button>
+
+    <p class="small">Isso nao apaga ordens antigas. Apenas faz a proxima OS voltar para o numero escolhido.</p>
    </div>
 
    <div class="card">
@@ -217,12 +301,17 @@ const firebaseConfig = {
 let db = null;
 let auth = null;
 let unsubscribeOrdens = null;
+let unsubscribeDespesas = null;
 let ordens = [];
+let despesas = [];
 let config = {};
 let ultimaOSSalva = null;
 
 const COL_ORDENS = "ordens_afia_v2";
+const COL_DESPESAS = "despesas_afia_v1";
 const DOC_CONFIG = "config/afia";
+const DOC_CONTADOR_OS = "contadores/ordens";
+const OS_INICIO = 1;
 
 const horarios = [
  "09:00","09:30","10:00","10:30","11:00","11:30",
@@ -240,6 +329,7 @@ const defaultServices = [
 
 const defaultTemplate =
 `*AFIA - ORDEM DE SERVICO*
+OS: *{numero}*
 
 Ola, *{nome}*!
 Sua ordem de servico foi registrada.
@@ -325,6 +415,8 @@ function normalizarTemplateWhatsApp(t){
 async function iniciar(){
  document.getElementById("agendaData").value = hoje();
  document.getElementById("dataEntrega").value = hoje();
+ if(document.getElementById("dataDespesa")) dataDespesa.value = hoje();
+ if(document.getElementById("finMes")) finMes.value = hoje().slice(0,7);
 
  horarios.forEach(h=>{
    const o = document.createElement("option");
@@ -338,7 +430,7 @@ async function iniciar(){
    db = firebase.firestore();
    auth = firebase.auth();
 
-   cloudStatus.innerHTML = '<span class="ok">Firebase conectado - aguardando login seguro</span>';
+   cloudStatus.innerHTML = '<span class="ok">Firebase conectado - numeracao mensal da OS ativa</span>';
    ajusteStatus.innerHTML = '<span class="ok">Conectado</span>';
 
    auth.onAuthStateChanged(async user=>{
@@ -347,6 +439,7 @@ async function iniciar(){
          await carregarConfig();
          abrirApp();
          iniciarEscutaOrdens();
+         iniciarEscutaDespesas();
        }catch(e){
          cloudStatus.innerHTML = '<span class="bad">Erro ao carregar dados: '+limparTexto(e.message)+'</span>';
        }
@@ -372,8 +465,24 @@ function iniciarEscutaOrdens(){
    s.forEach(d=>ordens.push({id:d.id, ...d.data()}));
    renderAgenda();
    renderClientes();
+   renderFinanceiro();
  },e=>{
    cloudStatus.innerHTML = '<span class="bad">Erro ao ler agenda: '+limparTexto(e.message)+'</span>';
+ });
+}
+
+function iniciarEscutaDespesas(){
+ if(unsubscribeDespesas){
+   unsubscribeDespesas();
+   unsubscribeDespesas = null;
+ }
+
+ unsubscribeDespesas = db.collection(COL_DESPESAS).orderBy("data","desc").onSnapshot(s=>{
+   despesas = [];
+   s.forEach(d=>despesas.push({id:d.id, ...d.data()}));
+   renderFinanceiro();
+ },e=>{
+   cloudStatus.innerHTML = '<span class="bad">Erro ao ler despesas: '+limparTexto(e.message)+'</span>';
  });
 }
 
@@ -433,7 +542,13 @@ function fecharApp(){
    unsubscribeOrdens = null;
  }
 
+ if(unsubscribeDespesas){
+   unsubscribeDespesas();
+   unsubscribeDespesas = null;
+ }
+
  ordens = [];
+ despesas = [];
  loginScreen.classList.remove("hidden");
  appScreen.classList.add("hidden");
  cloudStatus.innerHTML = '<span class="ok">Firebase conectado - faca login</span>';
@@ -448,13 +563,14 @@ async function logout(){
 }
 
 function showTab(t){
- ["agenda","nova","clientes","ajustes"].forEach(id=>document.getElementById(id).classList.add("hidden"));
- ["btnAgenda","btnNova","btnClientes","btnAjustes"].forEach(id=>document.getElementById(id).classList.remove("active"));
+ ["agenda","nova","financeiro","clientes","ajustes"].forEach(id=>document.getElementById(id).classList.add("hidden"));
+ ["btnAgenda","btnNova","btnFinanceiro","btnClientes","btnAjustes"].forEach(id=>document.getElementById(id).classList.remove("active"));
 
  document.getElementById(t).classList.remove("hidden");
 
  if(t === "agenda") btnAgenda.classList.add("active");
  if(t === "nova") btnNova.classList.add("active");
+ if(t === "financeiro"){btnFinanceiro.classList.add("active"); renderFinanceiro();}
  if(t === "clientes") btnClientes.classList.add("active");
  if(t === "ajustes") btnAjustes.classList.add("active");
 }
@@ -635,6 +751,113 @@ function calcularDistribuicoesDoDia(dia, ignorarId){
  return {confirmado, agendado, ocupadoTotal, distPorId, semVaga};
 }
 
+
+function numeroTextoOS(os){
+ if(os && os.numeroOS){
+   return String(os.numeroOS);
+ }
+
+ if(os && os.id){
+   return "ANTIGA-" + String(os.id).slice(0,6);
+ }
+
+ return "-";
+}
+
+function proximoNumeroDepoisDe(ultimo){
+ ultimo = Number(ultimo || 0);
+
+ if(ultimo < 0){
+   ultimo = 0;
+ }
+
+ return ultimo + 1;
+}
+
+async function gerarNumeroOSDentroDaTransacao(transaction){
+ const refContador = db.doc(DOC_CONTADOR_OS);
+ const snap = await transaction.get(refContador);
+
+ let ultimo = 0;
+
+ if(snap.exists){
+   ultimo = Number(snap.data().ultimo || 0);
+ }
+
+ const proximo = proximoNumeroDepoisDe(ultimo);
+
+ transaction.set(refContador, {
+   ultimo: proximo,
+   atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+ }, {merge:true});
+
+ return proximo;
+}
+
+async function renderNumeroOSAjustes(){
+ if(!document.getElementById("proximoNumeroOS")) return;
+
+ try{
+   const snap = await db.doc(DOC_CONTADOR_OS).get();
+   let ultimo = 0;
+
+   if(snap.exists){
+     ultimo = Number(snap.data().ultimo || 0);
+   }
+
+   const proximo = proximoNumeroDepoisDe(ultimo);
+
+   proximoNumeroOS.textContent = String(proximo);
+   if(document.getElementById("setProximoNumero")){
+     setProximoNumero.value = proximo;
+   }
+ }catch(e){
+   proximoNumeroOS.textContent = "Erro";
+ }
+}
+
+async function salvarProximoNumeroOS(){
+ const n = Number(setProximoNumero.value || 0);
+
+ if(n < OS_INICIO){
+   alert("Digite um numero igual ou maior que "+OS_INICIO+".");
+   return;
+ }
+
+ try{
+   await db.doc(DOC_CONTADOR_OS).set({
+     ultimo: n - 1,
+     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+   }, {merge:true});
+
+   await renderNumeroOSAjustes();
+
+   alert("Proxima OS definida como "+String(n)+".");
+ }catch(e){
+   alert("Erro ao salvar numeracao: "+limparTexto(e.message));
+ }
+}
+
+async function zerarNumeracaoOS(){
+ const ok = confirm("Zerar a numeracao da OS? A proxima OS criada sera a numero 1. As ordens antigas nao serao apagadas.");
+
+ if(!ok) return;
+
+ try{
+   await db.doc(DOC_CONTADOR_OS).set({
+     ultimo: 0,
+     zeradoEm: firebase.firestore.FieldValue.serverTimestamp(),
+     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+   }, {merge:true});
+
+   await renderNumeroOSAjustes();
+
+   alert("Numeracao zerada. A proxima OS sera 1.");
+ }catch(e){
+   alert("Erro ao zerar numeracao: "+limparTexto(e.message));
+ }
+}
+
 function ocupacaoTotalDoDia(data, ignorarId){
  const dia = ordens.filter(o=>o.data === data);
  return calcularDistribuicoesDoDia(dia, ignorarId).ocupadoTotal;
@@ -698,10 +921,28 @@ async function salvarOS(e){
  };
 
  try{
-   const ref = await db.collection(COL_ORDENS).add(os);
-   os.id = ref.id;
+   let novoId = "";
+   let numeroGerado = null;
+
+   await db.runTransaction(async transaction=>{
+     const novaRef = db.collection(COL_ORDENS).doc();
+     const numeroOS = await gerarNumeroOSDentroDaTransacao(transaction);
+
+     novoId = novaRef.id;
+     numeroGerado = numeroOS;
+
+     transaction.set(novaRef, {
+       ...os,
+       numeroOS: numeroOS,
+       criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+     });
+   });
+
+   os.id = novoId;
+   os.numeroOS = numeroGerado;
    ultimaOSSalva = os;
 
+   await renderNumeroOSAjustes();
    mostrarAcoesDepoisDeSalvar(os);
 
    e.target.reset();
@@ -723,7 +964,7 @@ function mostrarAcoesDepoisDeSalvar(os){
  if(resumo){
    const dist = Object.entries(os.alocacoes || {}).map(([h,q])=>h+": "+q).join(" | ");
    resumo.innerHTML = `
-    <b>${limparTexto(os.nome)}</b><br>
+    <b>OS ${numeroTextoOS(os)} - ${limparTexto(os.nome)}</b><br>
     Entrega: ${dataBR(os.data)} as ${os.hora}<br>
     Servicos: ${Number(os.pecas || 0)}<br>
     Distribuicao: ${dist}<br>
@@ -768,6 +1009,7 @@ function enviarWhatsApp(os){
  }
 
  let msg = normalizarTemplateWhatsApp(config.template || defaultTemplate)
+   .replaceAll("{numero}", numeroTextoOS(os))
    .replaceAll("{nome}", limparTexto(os.nome))
    .replaceAll("{data}", dataBR(os.data))
    .replaceAll("{hora}", os.hora)
@@ -800,8 +1042,9 @@ function htmlViaLoja(os){
   <div class="recibo">
    <div class="centro titulo">AFIA</div>
    <div class="centro subtitulo">VIA DA LOJA</div>
+   <div class="centro" style="font-size:28px;font-weight:900;margin:8px 0">OS ${escaparHtml(numeroTextoOS(os))}</div>
    <hr>
-   <div class="linha">OS: ${escaparHtml(os.id || "")}</div>
+   <div class="linha">Codigo interno: ${escaparHtml(os.id || "")}</div>
    <div class="linha">Cliente: ${escaparHtml(limparTexto(os.nome))}</div>
    <div class="linha">Telefone: ${escaparHtml(limparTexto(os.telefone))}</div>
    <div class="linha">Entrega: ${escaparHtml(dataBR(os.data))} ${escaparHtml(os.hora || "")}</div>
@@ -872,7 +1115,8 @@ hr{border:0;border-top:1px dashed #999;margin:10px 0}
 function prepararImpressao(os){
  printArea.innerHTML = `
   <div style="text-align:center;font-weight:bold">AFIA - VIA DA LOJA</div>
-  <div class="print-line">OS: ${os.id || ""}</div>
+  <div class="print-line" style="text-align:center;font-size:20px;font-weight:bold">OS ${numeroTextoOS(os)}</div>
+  <div class="print-line">Codigo interno: ${os.id || ""}</div>
   <div class="print-line">Cliente: ${limparTexto(os.nome)}</div>
   <div class="print-line">Tel: ${limparTexto(os.telefone)}</div>
   <div class="print-line">Entrega: ${dataBR(os.data)} ${os.hora}</div>
@@ -887,16 +1131,25 @@ function prepararImpressao(os){
 
 function renderAgenda(){
  const data = agendaData.value;
- const dia = ordenarOrdensDoDia(ordens.filter(o=>o.data === data));
- const calcDia = calcularDistribuicoesDoDia(dia);
+ const diaCompleto = ordenarOrdensDoDia(ordens.filter(o=>o.data === data));
+ const calcDia = calcularDistribuicoesDoDia(diaCompleto);
 
- statPedidos.textContent = dia.length;
- statPecas.textContent = dia.reduce((s,o)=>s + getPecasAgenda(o), 0);
- statValor.textContent = moeda(dia.reduce((s,o)=>s + Number(o.valor || 0), 0));
+ statPedidos.textContent = diaCompleto.length;
+ statPecas.textContent = diaCompleto.reduce((s,o)=>s + getPecasAgenda(o), 0);
+ statValor.textContent = moeda(diaCompleto.reduce((s,o)=>s + Number(o.valor || 0), 0));
 
  renderGrid(calcDia);
 
- agendaLista.innerHTML = dia.length ? "" : '<div class="card small">Nenhuma OS para esta data.</div>';
+ const busca = document.getElementById("buscaAgenda") ? limparTexto(buscaAgenda.value).toLowerCase().trim() : "";
+ const dia = diaCompleto.filter(o=>{
+   if(!busca) return true;
+   return numeroTextoOS(o).toLowerCase().includes(busca) ||
+          limparTexto(o.nome).toLowerCase().includes(busca) ||
+          limparTexto(o.telefone).toLowerCase().includes(busca) ||
+          limparTelefone(o.telefone).includes(limparTelefone(busca));
+ });
+
+ agendaLista.innerHTML = dia.length ? "" : '<div class="card small">Nenhuma OS encontrada para esta busca/data.</div>';
 
  if(calcDia.semVaga.length){
    const alerta = document.createElement("div");
@@ -921,7 +1174,7 @@ function renderAgenda(){
      : "Sem distribuicao";
 
    d.innerHTML = `
-    <p><b>${os.hora} - ${limparTexto(os.nome)}</b></p>
+    <p><b>OS ${numeroTextoOS(os)} - ${os.hora} - ${limparTexto(os.nome)}</b></p>
     <p>${limparTexto(os.telefone)}</p>
     <p>${itensTexto(os," | ")}</p>
     <p>${moeda(os.valor)} | ${limparTexto(os.pagamento)}</p>
@@ -982,6 +1235,240 @@ function renderGrid(calcDia){
  agendaGrid.innerHTML = html;
 }
 
+
+function pagamentoFoiRecebido(os){
+ const p = limparTexto(os.pagamento || "").toLowerCase();
+ return p.includes("pago");
+}
+
+function resumoFinanceiro(listaOS, listaDespesas){
+ const r = {
+   pedidos: listaOS.length,
+   servicos: 0,
+   faturamento: 0,
+   recebido: 0,
+   aReceber: 0,
+   despesas: 0,
+   saldo: 0
+ };
+
+ listaOS.forEach(os=>{
+   const valor = Number(os.valor || 0);
+   r.servicos += getPecasAgenda(os);
+   r.faturamento += valor;
+
+   if(pagamentoFoiRecebido(os)){
+     r.recebido += valor;
+   }else{
+     r.aReceber += valor;
+   }
+ });
+
+ listaDespesas.forEach(d=>{
+   r.despesas += Number(d.valor || 0);
+ });
+
+ r.saldo = r.recebido - r.despesas;
+
+ return r;
+}
+
+function htmlCaixasFinanceiro(r){
+ return `
+  <div class="finance-grid">
+   <div class="finance-box"><span>Faturamento</span><b>${moeda(r.faturamento)}</b></div>
+   <div class="finance-box"><span>Recebido</span><b>${moeda(r.recebido)}</b></div>
+   <div class="finance-box"><span>A receber</span><b>${moeda(r.aReceber)}</b></div>
+   <div class="finance-box"><span>Despesas</span><b>${moeda(r.despesas)}</b></div>
+   <div class="finance-box"><span>Saldo recebido</span><b>${moeda(r.saldo)}</b></div>
+   <div class="finance-box"><span>Servicos</span><b>${r.servicos}</b></div>
+  </div>
+  <p class="small">Pedidos: <b>${r.pedidos}</b>. O saldo usa apenas pagamentos marcados como Pago.</p>
+ `;
+}
+
+function renderFinanceiro(){
+ if(!document.getElementById("financeiroResumo")) return;
+
+ if(!finMes.value){
+   finMes.value = hoje().slice(0,7);
+ }
+
+ if(!dataDespesa.value){
+   dataDespesa.value = hoje();
+ }
+
+ const mes = finMes.value;
+ const hojeData = hoje();
+
+ const osMes = ordens.filter(o=>String(o.data || "").startsWith(mes));
+ const despMes = despesas.filter(d=>String(d.data || "").startsWith(mes));
+
+ const osHoje = ordens.filter(o=>o.data === hojeData);
+ const despHoje = despesas.filter(d=>d.data === hojeData);
+
+ const resumoMes = resumoFinanceiro(osMes, despMes);
+ const resumoHoje = resumoFinanceiro(osHoje, despHoje);
+
+ financeiroResumo.innerHTML = htmlCaixasFinanceiro(resumoMes);
+ financeiroHoje.innerHTML = htmlCaixasFinanceiro(resumoHoje);
+
+ renderFinanceiroDias(mes);
+ renderDespesasLista(mes);
+}
+
+function renderFinanceiroDias(mes){
+ const datas = new Set();
+
+ ordens.forEach(o=>{
+   if(String(o.data || "").startsWith(mes)) datas.add(o.data);
+ });
+
+ despesas.forEach(d=>{
+   if(String(d.data || "").startsWith(mes)) datas.add(d.data);
+ });
+
+ const listaDatas = Array.from(datas).sort();
+
+ if(!listaDatas.length){
+   financeiroDias.innerHTML = '<p class="small">Nenhum movimento neste mes.</p>';
+   return;
+ }
+
+ let html = '<table class="finance-table"><tr><th>Dia</th><th>Recebido</th><th>Despesa</th><th>Saldo</th></tr>';
+
+ listaDatas.forEach(data=>{
+   const osDia = ordens.filter(o=>o.data === data);
+   const despDia = despesas.filter(d=>d.data === data);
+   const r = resumoFinanceiro(osDia, despDia);
+
+   html += `<tr>
+    <td>${dataBR(data)}</td>
+    <td>${moeda(r.recebido)}</td>
+    <td>${moeda(r.despesas)}</td>
+    <td><b>${moeda(r.saldo)}</b></td>
+   </tr>`;
+ });
+
+ html += '</table>';
+
+ financeiroDias.innerHTML = html;
+}
+
+function renderDespesasLista(mes){
+ const lista = despesas
+   .filter(d=>String(d.data || "").startsWith(mes))
+   .sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+
+ if(!lista.length){
+   despesasLista.innerHTML = '<p class="small">Nenhuma despesa cadastrada neste mes.</p>';
+   return;
+ }
+
+ let html = '<table class="finance-table"><tr><th>Data</th><th>Despesa</th><th>Valor</th></tr>';
+
+ lista.forEach(d=>{
+   html += `<tr>
+    <td>${dataBR(d.data)}</td>
+    <td>${limparTexto(d.categoria || "")}<br><span class="small">${limparTexto(d.descricao || "")}</span><br><button class="btn btn-red" style="padding:7px;margin-top:6px" onclick="apagarDespesa('${d.id}')">Apagar</button></td>
+    <td><b>${moeda(d.valor)}</b></td>
+   </tr>`;
+ });
+
+ html += '</table>';
+
+ despesasLista.innerHTML = html;
+}
+
+async function salvarDespesa(){
+ const data = dataDespesa.value || hoje();
+ const categoria = limparTexto(categoriaDespesa.value || "Outros");
+ const descricao = limparTexto(descDespesa.value.trim());
+ const valor = Number(String(valorDespesa.value || 0).replace(",", "."));
+
+ if(!valor || valor <= 0){
+   alert("Digite o valor da despesa.");
+   return;
+ }
+
+ const despesa = {
+   data: data,
+   categoria: categoria,
+   descricao: descricao,
+   valor: valor,
+   criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+   usuario: emailUsuarioAtual()
+ };
+
+ try{
+   await db.collection(COL_DESPESAS).add(despesa);
+   descDespesa.value = "";
+   valorDespesa.value = "";
+   if(finMes.value !== data.slice(0,7)) finMes.value = data.slice(0,7);
+   renderFinanceiro();
+ }catch(e){
+   alert("Erro ao salvar despesa: "+limparTexto(e.message));
+ }
+}
+
+async function apagarDespesa(id){
+ if(!confirm("Apagar esta despesa?")) return;
+
+ try{
+   await db.collection(COL_DESPESAS).doc(id).delete();
+ }catch(e){
+   alert("Erro ao apagar despesa: "+limparTexto(e.message));
+ }
+}
+
+function textoRelatorioFinanceiro(){
+ const mes = finMes.value || hoje().slice(0,7);
+ const osMes = ordens.filter(o=>String(o.data || "").startsWith(mes));
+ const despMes = despesas.filter(d=>String(d.data || "").startsWith(mes));
+ const r = resumoFinanceiro(osMes, despMes);
+
+ let texto = "";
+ texto += "AFIA - RESUMO FINANCEIRO\n";
+ texto += "Mes: "+mes+"\n\n";
+ texto += "Pedidos: "+r.pedidos+"\n";
+ texto += "Servicos: "+r.servicos+"\n";
+ texto += "Faturamento: "+moeda(r.faturamento)+"\n";
+ texto += "Recebido: "+moeda(r.recebido)+"\n";
+ texto += "A receber: "+moeda(r.aReceber)+"\n";
+ texto += "Despesas: "+moeda(r.despesas)+"\n";
+ texto += "Saldo recebido: "+moeda(r.saldo)+"\n\n";
+
+ const porData = {};
+ osMes.forEach(o=>{
+   if(!porData[o.data]) porData[o.data] = {os:[], desp:[]};
+   porData[o.data].os.push(o);
+ });
+ despMes.forEach(d=>{
+   if(!porData[d.data]) porData[d.data] = {os:[], desp:[]};
+   porData[d.data].desp.push(d);
+ });
+
+ Object.keys(porData).sort().forEach(data=>{
+   const dia = porData[data];
+   const rd = resumoFinanceiro(dia.os, dia.desp);
+   texto += dataBR(data)+" - recebido "+moeda(rd.recebido)+" - despesas "+moeda(rd.despesas)+" - saldo "+moeda(rd.saldo)+"\n";
+ });
+
+ return texto;
+}
+
+async function copiarRelatorioFinanceiro(){
+ const texto = textoRelatorioFinanceiro();
+
+ try{
+   await navigator.clipboard.writeText(texto);
+   alert("Resumo copiado.");
+ }catch(e){
+   alert(texto);
+ }
+}
+
+
 function renderClientes(){
  const q = limparTexto(buscaCliente.value).toLowerCase().trim();
  const mapa = {};
@@ -1032,7 +1519,7 @@ function renderClientes(){
    const ultima = c.ordens[0];
 
    const historico = c.ordens.map(os=>{
-     return `<p class="small">${dataBR(os.data)} as ${os.hora} - ${getPecasAgenda(os)} servicos - ${moeda(os.valor)} - ${limparTexto(os.status)}</p>`;
+     return `<p class="small">OS ${numeroTextoOS(os)} - ${dataBR(os.data)} as ${os.hora} - ${getPecasAgenda(os)} servicos - ${moeda(os.valor)} - ${limparTexto(os.status)}</p>`;
    }).join("");
 
    const d = document.createElement("div");
