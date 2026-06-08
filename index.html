@@ -61,6 +61,11 @@ textarea{min-height:80px}
 .finance-table th,.finance-table td{border-bottom:1px solid #eee;padding:7px 4px;text-align:left}
 .finance-table th{color:#777;font-size:11px}
 .finance-table td:last-child,.finance-table th:last-child{text-align:right}
+.connection-box{font-size:12px;font-weight:900;margin-top:6px;padding:8px;border-radius:10px;background:#f8f8fa}
+.connection-online{color:#23a647}
+.connection-offline{color:#ff3b30}
+.pending-box{background:#fff8e6;border:1px solid #ffd37a;border-radius:12px;padding:10px;margin-top:10px;font-size:12px}
+
 
 #printArea{display:none}
 @media print{
@@ -78,7 +83,7 @@ textarea{min-height:80px}
  <div class="header">
   <h1>AFIA</h1>
   <p>ORDEM DE SERVICO - AGENDA - CLIENTES</p>
-  <p class="version">VERSAO 9.0 - NUMERACAO MENSAL DA OS</p>
+  <p class="version">VERSAO 10.0 - OFFLINE E FECHAMENTO</p>
  </div>
 
  <section id="loginScreen" class="card">
@@ -90,7 +95,11 @@ textarea{min-height:80px}
  </section>
 
  <main id="appScreen" class="hidden">
-  <div class="card"><div id="cloudStatus">Conectando ao Firebase...</div></div>
+  <div class="card">
+   <div id="cloudStatus">Conectando ao Firebase...</div>
+   <div id="connectionStatus" class="connection-box">Verificando conexao...</div>
+   <div id="offlinePendentesStatus" class="small"></div>
+  </div>
 
   <div class="tabs">
    <button id="btnAgenda" class="active" onclick="showTab('agenda')">Agenda</button>
@@ -111,6 +120,15 @@ textarea{min-height:80px}
     <h3 class="title">Agenda</h3>
     <label>Data</label><input type="date" id="agendaData" onchange="renderAgenda()">
     <label>Pesquisar OS</label><input id="buscaAgenda" oninput="renderAgenda()" placeholder="Numero da OS, nome ou telefone">
+
+    <label>Filtro de status</label>
+    <select id="filtroStatusAgenda" onchange="renderAgenda()">
+     <option value="todos">Todos</option>
+     <option value="pendentes">Pendentes / nao retirados</option>
+     <option value="pronto">Pronto</option>
+     <option value="retirado">Retirado</option>
+    </select>
+
     <div id="agendaGrid" style="margin-top:12px"></div>
    </div>
    <h3 style="font-size:15px;margin:14px 0 8px">Ordens do dia</h3>
@@ -230,6 +248,9 @@ textarea{min-height:80px}
     <h3 class="title">Relatorio</h3>
     <p class="small">Gera um resumo do mes para voce copiar, salvar ou enviar para seu contador.</p>
     <button class="btn btn-blue" onclick="copiarRelatorioFinanceiro()">Copiar resumo do mes</button>
+    <button class="btn btn-blue" onclick="baixarRelatorioFinanceiroTXT()">Baixar resumo TXT</button>
+    <button class="btn btn-blue" onclick="exportarFinanceiroCSV()">Baixar planilha CSV</button>
+    <button class="btn" onclick="fecharMesFinanceiro()">Fechar mes e zerar OS</button>
    </div>
   </section>
 
@@ -302,6 +323,7 @@ let db = null;
 let auth = null;
 let unsubscribeOrdens = null;
 let unsubscribeDespesas = null;
+let offlinePersistenceOk = false;
 let ordens = [];
 let despesas = [];
 let config = {};
@@ -309,7 +331,9 @@ let ultimaOSSalva = null;
 
 const COL_ORDENS = "ordens_afia_v2";
 const COL_DESPESAS = "despesas_afia_v1";
+const COL_FECHAMENTOS = "fechamentos_afia_v1";
 const DOC_CONFIG = "config/afia";
+const LOCAL_OS_PENDENTES = "afia_os_pendentes_v1";
 const DOC_CONTADOR_OS = "contadores/ordens";
 const OS_INICIO = 1;
 
@@ -428,9 +452,24 @@ async function iniciar(){
  try{
    firebase.initializeApp(firebaseConfig);
    db = firebase.firestore();
+
+   try{
+     await db.enablePersistence({synchronizeTabs:true});
+     offlinePersistenceOk = true;
+   }catch(persistError){
+     offlinePersistenceOk = false;
+   }
+
    auth = firebase.auth();
 
-   cloudStatus.innerHTML = '<span class="ok">Firebase conectado - numeracao mensal da OS ativa</span>';
+   atualizarStatusConexao();
+   window.addEventListener("online", ()=>{
+     atualizarStatusConexao();
+     sincronizarPendentesOffline();
+   });
+   window.addEventListener("offline", atualizarStatusConexao);
+
+   cloudStatus.innerHTML = '<span class="ok">Firebase conectado - offline e fechamento ativo</span>';
    ajusteStatus.innerHTML = '<span class="ok">Conectado</span>';
 
    auth.onAuthStateChanged(async user=>{
@@ -440,6 +479,8 @@ async function iniciar(){
          abrirApp();
          iniciarEscutaOrdens();
          iniciarEscutaDespesas();
+         atualizarStatusPendentesOffline();
+         sincronizarPendentesOffline();
        }catch(e){
          cloudStatus.innerHTML = '<span class="bad">Erro ao carregar dados: '+limparTexto(e.message)+'</span>';
        }
@@ -460,7 +501,8 @@ function iniciarEscutaOrdens(){
    unsubscribeOrdens = null;
  }
 
- unsubscribeOrdens = db.collection(COL_ORDENS).orderBy("criadoEm","desc").onSnapshot(s=>{
+ unsubscribeOrdens = db.collection(COL_ORDENS).orderBy("criadoEm","desc").onSnapshot({includeMetadataChanges:true}, s=>{
+   atualizarStatusSnapshot(s);
    ordens = [];
    s.forEach(d=>ordens.push({id:d.id, ...d.data()}));
    renderAgenda();
@@ -477,7 +519,7 @@ function iniciarEscutaDespesas(){
    unsubscribeDespesas = null;
  }
 
- unsubscribeDespesas = db.collection(COL_DESPESAS).orderBy("data","desc").onSnapshot(s=>{
+ unsubscribeDespesas = db.collection(COL_DESPESAS).orderBy("data","desc").onSnapshot({includeMetadataChanges:true}, s=>{
    despesas = [];
    s.forEach(d=>despesas.push({id:d.id, ...d.data()}));
    renderFinanceiro();
@@ -485,6 +527,148 @@ function iniciarEscutaDespesas(){
    cloudStatus.innerHTML = '<span class="bad">Erro ao ler despesas: '+limparTexto(e.message)+'</span>';
  });
 }
+
+function atualizarStatusConexao(){
+ if(!document.getElementById("connectionStatus")) return;
+
+ const online = navigator.onLine;
+
+ if(online){
+   const extra = offlinePersistenceOk ? "Cache offline ativo" : "Cache offline limitado";
+   connectionStatus.className = "connection-box connection-online";
+   connectionStatus.textContent = "Online - "+extra;
+ }else{
+   connectionStatus.className = "connection-box connection-offline";
+   connectionStatus.textContent = "Offline - voce pode consultar dados ja carregados. Nova OS fica pendente ate voltar internet.";
+ }
+
+ atualizarStatusPendentesOffline();
+}
+
+function atualizarStatusSnapshot(snap){
+ if(!document.getElementById("connectionStatus")) return;
+
+ const pendente = snap.metadata && snap.metadata.hasPendingWrites;
+ const cache = snap.metadata && snap.metadata.fromCache;
+
+ if(!navigator.onLine){
+   atualizarStatusConexao();
+   return;
+ }
+
+ if(pendente){
+   connectionStatus.className = "connection-box connection-offline";
+   connectionStatus.textContent = "Online - existem alteracoes aguardando sincronizar";
+ }else if(cache){
+   connectionStatus.className = "connection-box connection-offline";
+   connectionStatus.textContent = "Online - mostrando dados do cache";
+ }else{
+   connectionStatus.className = "connection-box connection-online";
+   connectionStatus.textContent = "Online - sincronizado com Firebase";
+ }
+}
+
+function obterPendentesOffline(){
+ try{
+   return JSON.parse(localStorage.getItem(LOCAL_OS_PENDENTES) || "[]");
+ }catch(e){
+   return [];
+ }
+}
+
+function salvarPendentesOffline(lista){
+ localStorage.setItem(LOCAL_OS_PENDENTES, JSON.stringify(lista || []));
+ atualizarStatusPendentesOffline();
+}
+
+function atualizarStatusPendentesOffline(){
+ if(!document.getElementById("offlinePendentesStatus")) return;
+
+ const qtd = obterPendentesOffline().length;
+
+ if(qtd > 0){
+   offlinePendentesStatus.innerHTML = '<div class="pending-box"><b>'+qtd+' OS pendente(s) offline.</b><br>Elas serao enviadas para o Firebase quando a internet voltar.<br><button class="btn btn-blue" onclick="sincronizarPendentesOffline()">Sincronizar agora</button></div>';
+ }else{
+   offlinePendentesStatus.innerHTML = "";
+ }
+}
+
+function salvarOSOffline(os){
+ const lista = obterPendentesOffline();
+
+ os.id = "offline_" + Date.now();
+ os.numeroOS = "PENDENTE";
+ os.criadoOfflineEm = new Date().toISOString();
+
+ lista.push(os);
+ salvarPendentesOffline(lista);
+
+ ultimaOSSalva = os;
+ mostrarAcoesDepoisDeSalvar(os);
+
+ alert("Sem internet. A OS ficou salva como pendente offline. O numero oficial sera gerado quando voltar a internet.");
+}
+
+async function salvarOSNoFirebase(os){
+ let novoId = "";
+ let numeroGerado = null;
+
+ await db.runTransaction(async transaction=>{
+   const novaRef = db.collection(COL_ORDENS).doc();
+   const numeroOS = await gerarNumeroOSDentroDaTransacao(transaction);
+
+   novoId = novaRef.id;
+   numeroGerado = numeroOS;
+
+   transaction.set(novaRef, {
+     ...os,
+     numeroOS: numeroOS,
+     criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+     sincronizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+   });
+ });
+
+ os.id = novoId;
+ os.numeroOS = numeroGerado;
+
+ return os;
+}
+
+async function sincronizarPendentesOffline(){
+ if(!navigator.onLine || !auth || !auth.currentUser) {
+   atualizarStatusPendentesOffline();
+   return;
+ }
+
+ let lista = obterPendentesOffline();
+
+ if(!lista.length){
+   atualizarStatusPendentesOffline();
+   return;
+ }
+
+ const restantes = [];
+
+ for(const osPendente of lista){
+   try{
+     const osLimpa = {...osPendente};
+     delete osLimpa.id;
+     delete osLimpa.numeroOS;
+
+     await salvarOSNoFirebase(osLimpa);
+   }catch(e){
+     restantes.push(osPendente);
+   }
+ }
+
+ salvarPendentesOffline(restantes);
+
+ if(lista.length && !restantes.length){
+   await renderNumeroOSAjustes();
+   alert("OS pendentes offline sincronizadas com sucesso.");
+ }
+}
+
 
 async function carregarConfig(){
  const snap = await db.doc(DOC_CONFIG).get();
@@ -921,36 +1105,29 @@ async function salvarOS(e){
  };
 
  try{
-   let novoId = "";
-   let numeroGerado = null;
+   if(!navigator.onLine){
+     salvarOSOffline(os);
+   }else{
+     const salva = await salvarOSNoFirebase(os);
+     ultimaOSSalva = salva;
 
-   await db.runTransaction(async transaction=>{
-     const novaRef = db.collection(COL_ORDENS).doc();
-     const numeroOS = await gerarNumeroOSDentroDaTransacao(transaction);
-
-     novoId = novaRef.id;
-     numeroGerado = numeroOS;
-
-     transaction.set(novaRef, {
-       ...os,
-       numeroOS: numeroOS,
-       criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-     });
-   });
-
-   os.id = novoId;
-   os.numeroOS = numeroGerado;
-   ultimaOSSalva = os;
-
-   await renderNumeroOSAjustes();
-   mostrarAcoesDepoisDeSalvar(os);
+     await renderNumeroOSAjustes();
+     mostrarAcoesDepoisDeSalvar(salva);
+   }
 
    e.target.reset();
    dataEntrega.value = hoje();
    renderServicosOS();
 
  }catch(err){
-   alert("Erro ao salvar: " + limparTexto(err.message));
+   if(!navigator.onLine){
+     salvarOSOffline(os);
+     e.target.reset();
+     dataEntrega.value = hoje();
+     renderServicosOS();
+   }else{
+     alert("Erro ao salvar: " + limparTexto(err.message));
+   }
  }
 }
 
@@ -1141,8 +1318,25 @@ function renderAgenda(){
  renderGrid(calcDia);
 
  const busca = document.getElementById("buscaAgenda") ? limparTexto(buscaAgenda.value).toLowerCase().trim() : "";
+ const filtroStatus = document.getElementById("filtroStatusAgenda") ? filtroStatusAgenda.value : "todos";
+
  const dia = diaCompleto.filter(o=>{
+   const statusLimpo = limparTexto(o.status || "").toLowerCase();
+
+   let okStatus = true;
+
+   if(filtroStatus === "pendentes"){
+     okStatus = !statusLimpo.includes("retirado");
+   }else if(filtroStatus === "pronto"){
+     okStatus = statusLimpo.includes("pronto");
+   }else if(filtroStatus === "retirado"){
+     okStatus = statusLimpo.includes("retirado");
+   }
+
+   if(!okStatus) return false;
+
    if(!busca) return true;
+
    return numeroTextoOS(o).toLowerCase().includes(busca) ||
           limparTexto(o.nome).toLowerCase().includes(busca) ||
           limparTexto(o.telefone).toLowerCase().includes(busca) ||
@@ -1456,6 +1650,106 @@ function textoRelatorioFinanceiro(){
 
  return texto;
 }
+
+function nomeArquivoSeguro(txt){
+ return limparTexto(txt || "arquivo").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+}
+
+function baixarArquivo(nome, conteudo, tipo){
+ const blob = new Blob([conteudo], {type: tipo || "text/plain;charset=utf-8"});
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement("a");
+ a.href = url;
+ a.download = nome;
+ document.body.appendChild(a);
+ a.click();
+ document.body.removeChild(a);
+ setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function baixarRelatorioFinanceiroTXT(){
+ const mes = finMes.value || hoje().slice(0,7);
+ baixarArquivo("afia_resumo_"+nomeArquivoSeguro(mes)+".txt", textoRelatorioFinanceiro(), "text/plain;charset=utf-8");
+}
+
+function csvEscape(v){
+ const s = String(v === undefined || v === null ? "" : v).replaceAll('"','""');
+ return '"'+s+'"';
+}
+
+function exportarFinanceiroCSV(){
+ const mes = finMes.value || hoje().slice(0,7);
+ let linhas = [];
+
+ linhas.push(["tipo","data","os","cliente","descricao","status","pagamento","valor"].map(csvEscape).join(","));
+
+ ordens.filter(o=>String(o.data || "").startsWith(mes)).forEach(o=>{
+   linhas.push([
+     "OS",
+     dataBR(o.data),
+     numeroTextoOS(o),
+     limparTexto(o.nome),
+     itensTexto(o," | "),
+     limparTexto(o.status),
+     limparTexto(o.pagamento),
+     Number(o.valor || 0).toFixed(2)
+   ].map(csvEscape).join(","));
+ });
+
+ despesas.filter(d=>String(d.data || "").startsWith(mes)).forEach(d=>{
+   linhas.push([
+     "DESPESA",
+     dataBR(d.data),
+     "",
+     "",
+     limparTexto(d.categoria || "")+" - "+limparTexto(d.descricao || ""),
+     "",
+     "",
+     "-"+Number(d.valor || 0).toFixed(2)
+   ].map(csvEscape).join(","));
+ });
+
+ baixarArquivo("afia_financeiro_"+nomeArquivoSeguro(mes)+".csv", linhas.join("\n"), "text/csv;charset=utf-8");
+}
+
+async function fecharMesFinanceiro(){
+ const mes = finMes.value || hoje().slice(0,7);
+ const texto = textoRelatorioFinanceiro();
+
+ const ok = confirm("Fechar o mes "+mes+"? O sistema vai salvar o resumo no Firebase. Depois voce podera zerar a numeracao da OS para voltar ao numero 1.");
+
+ if(!ok) return;
+
+ const osMes = ordens.filter(o=>String(o.data || "").startsWith(mes));
+ const despMes = despesas.filter(d=>String(d.data || "").startsWith(mes));
+ const resumo = resumoFinanceiro(osMes, despMes);
+
+ try{
+   await db.collection(COL_FECHAMENTOS).add({
+     mes: mes,
+     resumo: resumo,
+     relatorio: texto,
+     criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+     usuario: emailUsuarioAtual()
+   });
+
+   try{
+     await navigator.clipboard.writeText(texto);
+   }catch(e){}
+
+   alert("Fechamento salvo. O resumo tambem foi copiado quando o navegador permitiu.");
+
+   const zerar = confirm("Deseja zerar a numeracao da OS agora para a proxima OS voltar para 1?");
+
+   if(zerar){
+     await zerarNumeracaoOS();
+   }
+
+ }catch(e){
+   alert("Erro ao fechar mes: "+limparTexto(e.message));
+ }
+}
+
 
 async function copiarRelatorioFinanceiro(){
  const texto = textoRelatorioFinanceiro();
